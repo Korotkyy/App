@@ -142,27 +142,25 @@ struct ContentView: View {
     
     private func colorRandomCells(count: Int, goalId: UUID, markAsCompleted: Bool = false) {
         if let goal = goals.first(where: { $0.id == goalId }) {
-            let scaledCount = Int(ceil(Double(count) / Double(goal.scale)))
-            // Получаем все незакрашенные позиции
+            // Получаем все незакрашенные клетки на всем изображении
             var availablePositions = cells.enumerated()
                 .filter { !$0.element.isColored }
                 .map { $0.offset }
             
-            // Закрашиваем клетки
-            for _ in 0..<min(scaledCount, availablePositions.count) {
+            // Рассчитываем, сколько клеток нужно закрасить
+            let totalAmount = Double(Int(goal.totalNumber) ?? 0)
+            let proportion = Double(count) / totalAmount
+            let cellsToColor = Int(ceil(Double(goal.scaledSquares) * proportion))
+            
+            // Закрашиваем клетки случайным образом по всему изображению
+            for _ in 0..<min(cellsToColor, availablePositions.count) {
                 guard let randomIndex = availablePositions.indices.randomElement() else { break }
                 let position = availablePositions.remove(at: randomIndex)
                 cells[position].isColored = true
                 coloredCount += 1
             }
             
-            // Обновляем состояние цели
-            if markAsCompleted,
-               let index = goals.firstIndex(where: { $0.id == goalId }) {
-                goals[index].isCompleted = true
-            }
-            
-            // Принудительно обновляем отображение
+            // Обновляем отображение
             showGrid = false
             showGrid = true
         }
@@ -518,17 +516,8 @@ struct ContentView: View {
                             if let selectedGoal = goals[safe: selectedGoalIndex],
                                !selectedGoal.isCompleted && showGrid {
                                 Button(action: {
-                                    withAnimation {
-                                        if let remainingAmount = Int(selectedGoal.remainingNumber),
-                                           let goalIndex = goals.firstIndex(where: { $0.id == selectedGoal.id }) {  // Находим индекс
-                                            goals[goalIndex].remainingNumber = "0"    // Изменяем через индекс
-                                            goals[goalIndex].isCompleted = true       // Изменяем через индекс
-                                            
-                                            let goalCells = getCellsForGoal(selectedGoal)
-                                            colorRandomCells(count: remainingAmount, 
-                                                           goalId: selectedGoal.id, 
-                                                           markAsCompleted: true)
-                                        }
+                                    if let remainingAmount = Int(selectedGoal.remainingNumber) {
+                                        updateGoalProgress(goalId: selectedGoal.id, amount: remainingAmount)
                                     }
                                 }) {
                                     Image(systemName: "checkmark.circle.fill")
@@ -580,19 +569,8 @@ struct ContentView: View {
                                 
                                 Button("Complete") {
                                     if let partialAmount = Int(partialCompletion),
-                                       let remainingAmount = Int(selectedGoal.remainingNumber),
-                                       partialAmount <= remainingAmount {
-                                        let newRemaining = remainingAmount - partialAmount
-                                        
-                                        if let index = goals.firstIndex(where: { $0.id == selectedGoal.id }) {
-                                            goals[index].remainingNumber = String(newRemaining)
-                                            goals[index].isCompleted = newRemaining == 0
-                                            
-                                            let goalCells = getCellsForGoal(selectedGoal)
-                                            let proportion = Double(partialAmount) / Double(Int(selectedGoal.totalNumber) ?? 1)
-                                            let cellsToColor = Int(Double(goalCells) * proportion)
-                                            colorRandomCells(count: cellsToColor, goalId: selectedGoal.id, markAsCompleted: newRemaining == 0)
-                                        }
+                                       let selectedGoal = goals[safe: selectedGoalIndex] {
+                                        updateGoalProgress(goalId: selectedGoal.id, amount: partialAmount)
                                         partialCompletion = ""
                                     }
                                 }
@@ -706,11 +684,10 @@ struct ContentView: View {
                                     if showGrid {
                                         withAnimation {
                                             if let remainingAmount = Int(goal.remainingNumber),
-                                               let goalIndex = goals.firstIndex(where: { $0.id == goal.id }) {  // Находим индекс
-                                                goals[goalIndex].remainingNumber = "0"    // Изменяем через индекс
-                                                goals[goalIndex].isCompleted = true       // Изменяем через индекс
+                                               let goalIndex = goals.firstIndex(where: { $0.id == goal.id }) {
+                                                goals[goalIndex].remainingNumber = "0"
+                                                goals[goalIndex].isCompleted = true
                                                 
-                                                let goalCells = getCellsForGoal(goal)
                                                 colorRandomCells(count: remainingAmount, 
                                                                goalId: goal.id, 
                                                                markAsCompleted: true)
@@ -842,6 +819,47 @@ struct ContentView: View {
         else if number <= 1000000 { return 100 }
         else if number <= 10000000 { return 1000 }
         else { return 10000 }
+    }
+    
+    private func updateGoalProgress(goalId: UUID, amount: Int) {
+        if let goalIndex = goals.firstIndex(where: { $0.id == goalId }),
+           let remainingAmount = Int(goals[goalIndex].remainingNumber),
+           amount <= remainingAmount {
+            
+            // Обновляем состояние цели
+            let newRemaining = remainingAmount - amount
+            goals[goalIndex].remainingNumber = String(newRemaining)
+            goals[goalIndex].isCompleted = newRemaining == 0
+            
+            // Рассчитываем процент выполнения
+            let totalAmount = Double(Int(goals[goalIndex].totalNumber) ?? 0)
+            let completedAmount = totalAmount - Double(newRemaining)
+            let completionPercentage = completedAmount / totalAmount
+            
+            // Рассчитываем количество клеток для закрашивания
+            let cellsToColor = Int(Double(goals[goalIndex].scaledSquares) * completionPercentage)
+            
+            // Получаем только незакрашенные клетки
+            var availablePositions = cells.enumerated()
+                .filter { !$0.element.isColored }
+                .map { $0.offset }
+            
+            // Случайным образом закрашиваем нужное количество клеток
+            for _ in 0..<cellsToColor {
+                guard let randomIndex = availablePositions.indices.randomElement() else { break }
+                let position = availablePositions.remove(at: randomIndex)
+                cells[position].isColored = true
+            }
+            
+            // Обновляем общий счетчик закрашенных клеток
+            coloredCount = cells.filter { $0.isColored }.count
+            
+            // Обновляем отображение
+            withAnimation {
+                showGrid = false
+                showGrid = true
+            }
+        }
     }
 }
 
