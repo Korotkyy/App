@@ -26,15 +26,8 @@ struct SecondView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Image("background")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                    .clipped()
+                Color.customDarkNavy  // Заменяем Image("background") на сплошной цвет
                     .ignoresSafeArea()
-                    .overlay(
-                        Color.brown.opacity(0.1)
-                    )
                 
                 ScrollView {
                     LazyVGrid(columns: [
@@ -47,16 +40,22 @@ struct SecondView: View {
                                     getImage(from: project.imageData)
                                         .resizable()
                                         .scaledToFill()
-                                        .frame(width: UIScreen.main.bounds.width * 0.4,   // Пропорциональные размеры
-                                               height: UIScreen.main.bounds.width * 0.4)  // Квадратная форма
+                                        .frame(width: UIScreen.main.bounds.width * 0.4,
+                                               height: UIScreen.main.bounds.width * 0.4)
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                                        )
                                     
                                     Text(project.projectName)
-                                        .font(.system(size: UIScreen.main.bounds.width * 0.035))  // Адаптивный размер шрифта
+                                        .font(.system(size: UIScreen.main.bounds.width * 0.035))
                                         .foregroundColor(.white)
                                         .padding(.top, 4)
                                         .frame(maxWidth: .infinity, alignment: .center)
                                 }
+                                .background(Color.customNavy)
+                                .cornerRadius(10)
                                 .onTapGesture {
                                     selectedImage = getImage(from: project.imageData)
                                     goals = project.goals
@@ -81,7 +80,7 @@ struct SecondView: View {
                         }
                     }
                     .padding()
-                    .padding(.top, 30)
+                    .padding(.top, 60) // Увеличиваем отступ сверху
                 }
             }
             .navigationTitle("My Goals")
