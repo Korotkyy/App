@@ -351,6 +351,15 @@ struct ContentView: View {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                         )
+                                        .toolbar {
+                                            ToolbarItemGroup(placement: .keyboard) {
+                                                Spacer()
+                                                Button("Done") {
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                                                }
+                                            }
+                                        }
                                     
                                     TextField("Enter number", text: $inputNumber)
                                         .textFieldStyle(CustomTextFieldStyle())
@@ -362,6 +371,15 @@ struct ContentView: View {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                         )
+                                        .toolbar {
+                                            ToolbarItemGroup(placement: .keyboard) {
+                                                Spacer()
+                                                Button("Done") {
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                                                }
+                                            }
+                                        }
                                 }
                             }
                             
@@ -407,6 +425,15 @@ struct ContentView: View {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                         )
+                                        .toolbar {
+                                            ToolbarItemGroup(placement: .keyboard) {
+                                                Spacer()
+                                                Button("Done") {
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                                                }
+                                            }
+                                        }
                                     
                                     Button("Complete") {
                                         if let partialAmount = Int(partialCompletion),
