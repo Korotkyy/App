@@ -74,7 +74,7 @@ struct SavedProject: Identifiable, Codable {
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
-    @State private var selectedImage: Image?
+    @State private var selectedImage: Image? = nil
     @State private var projectName: String = ""
     @State private var inputText: String = ""
     @State private var inputNumber: String = ""
@@ -178,7 +178,8 @@ struct ContentView: View {
         }
     }
     
-    private func convertImageToData(_ image: Image) -> Data? {
+    private func convertImageToData(_ image: Image?) -> Data? {
+        guard let image = image else { return nil }
         // Создаем UIImage из Image
         let controller = UIHostingController(rootView:
             image
@@ -210,29 +211,28 @@ struct ContentView: View {
     }
     
     private func saveProject() {
-        if let image = selectedImage {
-            if let imageData = convertImageToData(image) {
-                let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
-                let newProject = SavedProject(
-                    id: UUID(),
-                    imageData: imageData,
-                    goals: goals,
-                    projectName: projectTitle,
-                    cells: cells,     // Сохраняем клетки
-                    showGrid: showGrid // Сохраняем состояние сетки
-                )
-                savedProjects.append(newProject)
-                saveToStorage()
-                showingSecondView = true
-            }
+        if let image = selectedImage,
+           let imageData = convertImageToData(image) {
+            let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
+            let newProject = SavedProject(
+                id: UUID(),
+                imageData: imageData,
+                goals: goals,
+                projectName: projectTitle,
+                cells: cells,
+                showGrid: showGrid
+            )
+            savedProjects.append(newProject)
+            saveToStorage()
+            showingSecondView = true
         }
     }
     
     private func getImage(from data: Data) -> Image {
-        if let uiImage = UIImage(data: data)?.preparingForDisplay() {
+        if let uiImage = UIImage(data: data) {
             return Image(uiImage: uiImage)
         }
-        return Image(systemName: "photo")
+        return Image(systemName: "photo") // Возвращаем placeholder вместо nil
     }
     
     var body: some View {
@@ -242,7 +242,7 @@ struct ContentView: View {
                     .ignoresSafeArea()
                 
                 VStack {
-                    if let selectedImage = selectedImage {
+                    if let image = selectedImage {
                         HStack(spacing: 20) {
                             Button(action: {
                                 saveProject()
@@ -286,14 +286,12 @@ struct ContentView: View {
                             ZStack {
                                 GeometryReader { geometry in
                                     ZStack {
-                                        if let image = selectedImage {
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                                .clipped()
-                                                .grayscale(1.0)
-                                        }
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: geometry.size.width, height: geometry.size.height)
+                                            .clipped()
+                                            .grayscale(1.0)
                                         
                                         let dimensions = calculateGridDimensions()
                                         let width = geometry.size.width / CGFloat(dimensions.columns)
@@ -304,21 +302,19 @@ struct ContentView: View {
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
                                             if cells[index].isColored {
-                                                if let image = selectedImage {
-                                                    image
-                                                        .resizable()
-                                                        .scaledToFill()
-                                                        .frame(width: geometry.size.width, height: geometry.size.height)
-                                                        .clipped()
-                                                        .mask(
-                                                            Rectangle()
-                                                                .frame(width: width, height: height)
-                                                                .position(
-                                                                    x: width * CGFloat(col) + width/2,
-                                                                    y: height * CGFloat(row) + height/2
-                                                                )
-                                                        )
-                                                }
+                                                image
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                                    .clipped()
+                                                    .mask(
+                                                        Rectangle()
+                                                            .frame(width: width, height: height)
+                                                            .position(
+                                                                x: width * CGFloat(col) + width/2,
+                                                                y: height * CGFloat(row) + height/2
+                                                            )
+                                                    )
                                             }
                                         }
                                         
@@ -343,7 +339,7 @@ struct ContentView: View {
                             .frame(height: UIScreen.main.bounds.height * 0.4)
                             .padding(.horizontal)
                         } else {
-                            selectedImage
+                            image
                                 .resizable()
                                 .scaledToFit()
                         }
@@ -799,7 +795,7 @@ struct ContentView: View {
     
     // Добавим новую функцию для восстановления состояния сетки
     private func restoreGridState(from project: SavedProject) {
-        selectedImage = getImage(from: project.imageData)
+        selectedImage = Image(uiImage: UIImage(data: project.imageData)!)
         goals = project.goals
         cells = project.cells
         showGrid = project.showGrid

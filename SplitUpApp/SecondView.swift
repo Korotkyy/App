@@ -16,6 +16,16 @@ struct SecondView: View {
         }
     }
     
+    private func restoreProject(_ project: SavedProject) {
+        if let uiImage = UIImage(data: project.imageData) {
+            selectedImage = Image(uiImage: uiImage)
+            goals = project.goals
+            cells = project.cells
+            showGrid = project.showGrid
+            isPresented = false
+        }
+    }
+    
     private func getImage(from data: Data) -> Image {
         if let uiImage = UIImage(data: data) {
             return Image(uiImage: uiImage)
@@ -57,11 +67,7 @@ struct SecondView: View {
                                 .background(Color.customNavy)
                                 .cornerRadius(10)
                                 .onTapGesture {
-                                    selectedImage = getImage(from: project.imageData)
-                                    goals = project.goals
-                                    cells = project.cells
-                                    showGrid = project.showGrid
-                                    dismiss()
+                                    restoreProject(project)
                                 }
                                 
                                 Button(action: {
