@@ -57,6 +57,7 @@ struct ContentView: View {
     @State private var savedProjects: [SavedProject] = []
     @State private var showingSecondView = false
     @AppStorage("savedProjects") private var savedProjectsData: Data = Data()
+    @State private var showAlert = false
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) }
@@ -383,33 +384,79 @@ struct ContentView: View {
                                 }
                             }
                             
-                            Picker("Goals", selection: $selectedGoalIndex) {
-                                ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
-                                    HStack {
-                                        Image(systemName: "circle.fill")
-                                            .font(.system(size: 8))
-                                            .foregroundColor(.customAccent)
-                                        Text("\(goal.text)")
-                                            .font(.system(size: 17, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .strikethrough(goal.isCompleted)
-                                        Text(goal.progress)
-                                            .font(.system(size: 15, weight: .regular))
-                                            .foregroundColor(.customAccent)
-                                        if !goal.isCompleted {
-                                            Image(systemName: "pencil")
-                                                .foregroundColor(.customAccent)
+                            HStack {
+                                Button(action: {
+                                    if let goal = goals[safe: selectedGoalIndex] {
+                                        withAnimation {
+                                            goals.remove(at: selectedGoalIndex)
+                                            if selectedGoalIndex >= goals.count {
+                                                selectedGoalIndex = max(goals.count - 1, 0)
+                                            }
                                         }
                                     }
-                                    .opacity(goal.isCompleted ? 0.6 : 1.0)
-                                    .tag(index)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                        .font(.system(size: 20))
+                                }
+                                
+                                Picker("Goals", selection: $selectedGoalIndex) {
+                                    ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
+                                        HStack(spacing: 4) {
+                                            Text("\(goal.text)")
+                                                .font(.system(size: 17, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .strikethrough(goal.isCompleted)
+                                                .lineLimit(1)
+                                            
+                                            Text(goal.progress)
+                                                .font(.system(size: 15, weight: .regular))
+                                                .foregroundColor(.customAccent)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .multilineTextAlignment(.center)
+                                        .tag(index)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                
+                                if let goal = goals[safe: selectedGoalIndex],
+                                   !goal.isCompleted {
+                                    Button(action: {
+                                        if !showGrid {
+                                            showAlert = true
+                                        } else {
+                                            withAnimation {
+                                                if let remainingAmount = Int(goal.remainingNumber) {
+                                                    goals[selectedGoalIndex].remainingNumber = "0"
+                                                    goals[selectedGoalIndex].isCompleted = true
+                                                    
+                                                    let goalCells = getCellsForGoal(goal)
+                                                    colorRandomCells(count: remainingAmount, 
+                                                                   goalId: goal.id, 
+                                                                   markAsCompleted: true)
+                                                }
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(showGrid ? .green : .green.opacity(0.3))
+                                            .font(.system(size: 20))
+                                    }
+                                    .disabled(!showGrid)
                                 }
                             }
-                            .pickerStyle(.wheel)
                             .frame(height: UIScreen.main.bounds.height * 0.08)
                             .background(Color.customNavy)
                             .cornerRadius(12)
                             .padding(.horizontal)
+                            .alert(isPresented: $showAlert) {
+                                Alert(
+                                    title: Text("Image Not Divided"),
+                                    message: Text("Please divide the image first by clicking 'Divide Image' button."),
+                                    dismissButton: .default(Text("OK"))
+                                )
+                            }
                             
                             if let selectedGoal = goals[safe: selectedGoalIndex],
                                !selectedGoal.isCompleted {
