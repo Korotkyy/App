@@ -38,13 +38,23 @@ struct Goal: Identifiable, Codable {
     var remainingNumber: String    // Оставшаяся сумма
     var isCompleted: Bool = false
     var unit: GoalUnit
+    var scale: Int = 1 // Добавляем масштаб: сколько единиц в одном квадрате
     
     // Вычисляемое свойство для отображения прогресса
     var progress: String {
         let total = Int(totalNumber) ?? 0
         let remaining = Int(remainingNumber) ?? 0
         let completed = total - remaining
-        return "\(completed)/\(total)\(unit.rawValue)"
+        
+        // Показываем масштаб только если он больше 1
+        let scaleText = scale > 1 ? " (1□=\(scale)\(unit.rawValue))" : ""
+        return "\(completed)/\(total)\(unit.rawValue)\(scaleText)"
+    }
+    
+    // Добавляем вычисляемое свойство для реального количества квадратов
+    var scaledSquares: Int {
+        let total = Int(totalNumber) ?? 0
+        return Int(ceil(Double(total) / Double(scale)))
     }
 }
 
@@ -84,9 +94,10 @@ struct ContentView: View {
     @State private var showAlert = false
     @State private var selectedUnit: GoalUnit = .pieces
     @State private var showGoalsList = false
+    @State private var showEditForm = false
     
     private var totalSquares: Int {
-        goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) }
+        goals.reduce(0) { $0 + $1.scaledSquares }
     }
     
     private func calculateGridDimensions() -> (rows: Int, columns: Int) {
@@ -101,7 +112,18 @@ struct ContentView: View {
     }
     
     private func initializeCells() {
-        let total = totalSquares
+        let totalSum = goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) }
+        let scale = calculateScale(for: totalSum)
+        
+        // Если общая сумма превышает 10000, обновляем масштаб для всех целей
+        if totalSum > 10000 {
+            for (index, goal) in goals.enumerated() {
+                goals[index].scale = scale
+            }
+        }
+        
+        // Теперь используем scaledSquares для определения общего количества ячеек
+        let total = goals.reduce(0) { $0 + $1.scaledSquares }
         
         // Сохраняем текущие закрашенные клетки
         let existingColoredCells = cells.filter { $0.isColored }
@@ -119,28 +141,31 @@ struct ContentView: View {
     }
     
     private func colorRandomCells(count: Int, goalId: UUID, markAsCompleted: Bool = false) {
-        // Получаем все незакрашенные позиции
-        var availablePositions = cells.enumerated()
-            .filter { !$0.element.isColored }
-            .map { $0.offset }
-        
-        // Закрашиваем клетки
-        for _ in 0..<min(count, availablePositions.count) {
-            guard let randomIndex = availablePositions.indices.randomElement() else { break }
-            let position = availablePositions.remove(at: randomIndex)
-            cells[position].isColored = true
-            coloredCount += 1
+        if let goal = goals.first(where: { $0.id == goalId }) {
+            let scaledCount = Int(ceil(Double(count) / Double(goal.scale)))
+            // Получаем все незакрашенные позиции
+            var availablePositions = cells.enumerated()
+                .filter { !$0.element.isColored }
+                .map { $0.offset }
+            
+            // Закрашиваем клетки
+            for _ in 0..<min(scaledCount, availablePositions.count) {
+                guard let randomIndex = availablePositions.indices.randomElement() else { break }
+                let position = availablePositions.remove(at: randomIndex)
+                cells[position].isColored = true
+                coloredCount += 1
+            }
+            
+            // Обновляем состояние цели
+            if markAsCompleted,
+               let index = goals.firstIndex(where: { $0.id == goalId }) {
+                goals[index].isCompleted = true
+            }
+            
+            // Принудительно обновляем отображение
+            showGrid = false
+            showGrid = true
         }
-        
-        // Обновляем состояние цели
-        if markAsCompleted,
-           let index = goals.firstIndex(where: { $0.id == goalId }) {
-            goals[index].isCompleted = true
-        }
-        
-        // Принудительно обновляем отображение
-        showGrid = false
-        showGrid = true
     }
     
     private func saveToStorage() {
@@ -367,7 +392,8 @@ struct ContentView: View {
                                 }
                             }
                             
-                            if showInputs {
+                            // Форма ввода/редактирования (над пикером)
+                            if showInputs || showEditForm {
                                 VStack(spacing: 10) {
                                     TextField("Enter text", text: $inputText)
                                         .textFieldStyle(CustomTextFieldStyle())
@@ -378,15 +404,6 @@ struct ContentView: View {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                         )
-                                        .toolbar {
-                                            ToolbarItemGroup(placement: .keyboard) {
-                                                Spacer()
-                                                Button("Done") {
-                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                        to: nil, from: nil, for: nil)
-                                                }
-                                            }
-                                        }
                                     
                                     HStack {
                                         TextField("Enter number", text: $inputNumber)
@@ -399,15 +416,6 @@ struct ContentView: View {
                                                 RoundedRectangle(cornerRadius: 12)
                                                     .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                             )
-                                            .toolbar {
-                                                ToolbarItemGroup(placement: .keyboard) {
-                                                    Spacer()
-                                                    Button("Done") {
-                                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                            to: nil, from: nil, for: nil)
-                                                    }
-                                                }
-                                            }
                                         
                                         Picker("Unit", selection: $selectedUnit) {
                                             Section(header: Text("Количество").foregroundColor(.gray)) {
@@ -434,9 +442,12 @@ struct ContentView: View {
                                         .cornerRadius(12)
                                     }
                                 }
+                                .padding(.horizontal)
+                                .transition(.opacity)
                             }
                             
                             HStack {
+                                // Красный крестик всегда виден
                                 Button(action: {
                                     if let goal = goals[safe: selectedGoalIndex] {
                                         withAnimation {
@@ -480,30 +491,37 @@ struct ContentView: View {
                                     }
                                 )
                                 
-                                if let goal = goals[safe: selectedGoalIndex],
-                                   !goal.isCompleted {
+                                // Карандаш всегда виден
+                                if let goal = goals[safe: selectedGoalIndex] {
                                     Button(action: {
-                                        if !showGrid {
-                                            showAlert = true
-                                        } else {
-                                            withAnimation {
-                                                if let remainingAmount = Int(goal.remainingNumber) {
-                                                    goals[selectedGoalIndex].remainingNumber = "0"
-                                                    goals[selectedGoalIndex].isCompleted = true
-                                                    
-                                                    let goalCells = getCellsForGoal(goal)
-                                                    colorRandomCells(count: remainingAmount, 
-                                                                   goalId: goal.id, 
-                                                                   markAsCompleted: true)
-                                                }
+                                        startEditing(goal)
+                                    }) {
+                                        Image(systemName: "pencil.circle.fill")
+                                            .foregroundColor(.customAccent)
+                                            .font(.system(size: 20))
+                                    }
+                                }
+                                
+                                // Зеленая галочка видна только после разделения фото
+                                if let goal = goals[safe: selectedGoalIndex],
+                                   !goal.isCompleted && showGrid {
+                                    Button(action: {
+                                        withAnimation {
+                                            if let remainingAmount = Int(goal.remainingNumber) {
+                                                goals[selectedGoalIndex].remainingNumber = "0"
+                                                goals[selectedGoalIndex].isCompleted = true
+                                                
+                                                let goalCells = getCellsForGoal(goal)
+                                                colorRandomCells(count: remainingAmount, 
+                                                               goalId: goal.id, 
+                                                               markAsCompleted: true)
                                             }
                                         }
                                     }) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(showGrid ? .green : .green.opacity(0.3))
+                                            .foregroundColor(.green)
                                             .font(.system(size: 20))
                                     }
-                                    .disabled(!showGrid)
                                 }
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.08)
@@ -516,57 +534,6 @@ struct ContentView: View {
                                     message: Text("Please divide the image first by clicking 'Divide Image' button."),
                                     dismissButton: .default(Text("OK"))
                                 )
-                            }
-                            
-                            if let selectedGoal = goals[safe: selectedGoalIndex],
-                               !selectedGoal.isCompleted && showGrid {
-                                HStack(spacing: 15) {
-                                    TextField("Enter completed amount", text: $partialCompletion)
-                                        .textFieldStyle(CustomTextFieldStyle())
-                                        .keyboardType(.numberPad)
-                                        .padding(.horizontal)
-                                        .frame(width: UIScreen.main.bounds.width * 0.35)
-                                        .background(Color.customBeige.opacity(0.1))
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
-                                        )
-                                        .toolbar {
-                                            ToolbarItemGroup(placement: .keyboard) {
-                                                Spacer()
-                                                Button("Done") {
-                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                        to: nil, from: nil, for: nil)
-                                                }
-                                            }
-                                        }
-                                    
-                                    Button("Complete") {
-                                        if let partialAmount = Int(partialCompletion),
-                                           let remainingAmount = Int(selectedGoal.remainingNumber),
-                                           partialAmount <= remainingAmount {
-                                            let newRemaining = remainingAmount - partialAmount
-                                            
-                                            if let index = goals.firstIndex(where: { $0.id == selectedGoal.id }) {
-                                                goals[index].remainingNumber = String(newRemaining)
-                                                goals[index].isCompleted = newRemaining == 0
-                                                
-                                                let goalCells = getCellsForGoal(selectedGoal)
-                                                let proportion = Double(partialAmount) / Double(Int(selectedGoal.totalNumber) ?? 1)
-                                                let cellsToColor = Int(Double(goalCells) * proportion)
-                                                colorRandomCells(count: cellsToColor, goalId: selectedGoal.id, markAsCompleted: newRemaining == 0)
-                                            }
-                                            partialCompletion = ""
-                                        }
-                                    }
-                                    .foregroundColor(.customDarkNavy)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.customBeige)
-                                    .cornerRadius(12)
-                                }
-                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical, 5)
@@ -735,11 +702,15 @@ struct ContentView: View {
     
     private func addGoal() {
         if !inputText.isEmpty && !inputNumber.isEmpty {
+            let number = Int(inputNumber) ?? 0
+            let scale = calculateScale(for: number)
+            
             goals.append(Goal(
                 text: inputText,
                 totalNumber: inputNumber,
                 remainingNumber: inputNumber,
-                unit: selectedUnit
+                unit: selectedUnit,
+                scale: scale
             ))
             clearInputs()
         }
@@ -749,17 +720,21 @@ struct ContentView: View {
         editingGoal = goal
         inputText = goal.text
         inputNumber = goal.totalNumber
+        selectedUnit = goal.unit
         isEditing = true
+        showEditForm = true
     }
     
     private func updateGoal() {
         if let editingGoal = editingGoal,
            let index = goals.firstIndex(where: { $0.id == editingGoal.id }) {
             goals[index] = Goal(
+                id: editingGoal.id, // Сохраняем тот же id
                 text: inputText,
                 totalNumber: inputNumber,
                 remainingNumber: inputNumber,
-                unit: selectedUnit
+                unit: selectedUnit,
+                scale: editingGoal.scale
             )
             clearInputs()
             isEditing = false
@@ -773,10 +748,7 @@ struct ContentView: View {
     }
     
     private func getCellsForGoal(_ goal: Goal) -> Int {
-        if let goalNumber = Int(goal.totalNumber) {
-            return goalNumber
-        }
-        return 0
+        return goal.scaledSquares
     }
     
     // Добавим новую функцию для восстановления состояния сетки
@@ -792,6 +764,15 @@ struct ContentView: View {
         if let url = URL(string: "https://familykorotkey.github.io/splitup-privacy-policy/") {
             UIApplication.shared.open(url)
         }
+    }
+    
+    // Функция для автоматического определения масштаба
+    private func calculateScale(for number: Int) -> Int {
+        if number <= 10000 { return 1 }
+        else if number <= 100000 { return 10 }
+        else if number <= 1000000 { return 100 }
+        else if number <= 10000000 { return 1000 }
+        else { return 10000 }
     }
 }
 
