@@ -83,6 +83,7 @@ struct ContentView: View {
     @AppStorage("savedProjects") private var savedProjectsData: Data = Data()
     @State private var showAlert = false
     @State private var selectedUnit: GoalUnit = .pieces
+    @State private var showGoalsList = false
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) }
@@ -470,32 +471,14 @@ struct ContentView: View {
                                     }
                                 }
                                 .pickerStyle(.wheel)
-                                
-                                if let goal = goals[safe: selectedGoalIndex],
-                                   !goal.isCompleted {
+                                .overlay(
                                     Button(action: {
-                                        if !showGrid {
-                                            showAlert = true
-                                        } else {
-                                            withAnimation {
-                                                if let remainingAmount = Int(goal.remainingNumber) {
-                                                    goals[selectedGoalIndex].remainingNumber = "0"
-                                                    goals[selectedGoalIndex].isCompleted = true
-                                                    
-                                                    let goalCells = getCellsForGoal(goal)
-                                                    colorRandomCells(count: remainingAmount, 
-                                                                   goalId: goal.id, 
-                                                                   markAsCompleted: true)
-                                                }
-                                            }
-                                        }
+                                        showGoalsList = true
                                     }) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(showGrid ? .green : .green.opacity(0.3))
-                                            .font(.system(size: 20))
+                                        Color.clear
+                                            .frame(width: UIScreen.main.bounds.width * 0.5)
                                     }
-                                    .disabled(!showGrid)
-                                }
+                                )
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.08)
                             .background(Color.customNavy)
@@ -632,6 +615,52 @@ struct ContentView: View {
                 cells: $cells,
                 showGrid: $showGrid
             )
+        }
+        .sheet(isPresented: $showGoalsList) {
+            NavigationView {
+                List {
+                    ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
+                        Button(action: {
+                            selectedGoalIndex = index
+                            showGoalsList = false
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(goal.text)
+                                        .font(.system(size: 17, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .strikethrough(goal.isCompleted)
+                                    
+                                    Text(goal.progress)
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.customAccent)
+                                }
+                                
+                                Spacer()
+                                
+                                if goal.isCompleted {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.customNavy)
+                    }
+                }
+                .listStyle(.plain)
+                .background(Color.customDarkNavy)
+                .navigationTitle("Goals")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            showGoalsList = false
+                        }
+                        .foregroundColor(.white)
+                    }
+                }
+            }
+            .preferredColorScheme(.dark)
         }
         .onChange(of: selectedItem) { newValue in
             Task {
