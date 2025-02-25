@@ -8,19 +8,43 @@
 import SwiftUI
 import PhotosUI
 
+enum GoalUnit: String, Codable, Identifiable, CaseIterable {
+    // Количественные
+    case pieces = "шт"
+    case packs = "уп"
+    case kilograms = "кг"
+    case liters = "л"
+    case meters = "м"
+    
+    // Денежные
+    case euro = "€"
+    case dollar = "$"
+    case ruble = "₽"
+    case tenge = "₸"
+    
+    // Временные
+    case days = "дн"
+    case weeks = "нед"
+    case months = "мес"
+    case hours = "ч"
+    
+    var id: String { self.rawValue }
+}
+
 struct Goal: Identifiable, Codable {
     var id = UUID()
     var text: String
     var totalNumber: String        // Общая сумма цели
     var remainingNumber: String    // Оставшаяся сумма
     var isCompleted: Bool = false
+    var unit: GoalUnit
     
     // Вычисляемое свойство для отображения прогресса
     var progress: String {
         let total = Int(totalNumber) ?? 0
         let remaining = Int(remainingNumber) ?? 0
         let completed = total - remaining
-        return "\(completed)/\(total)"
+        return "\(completed)/\(total)\(unit.rawValue)"
     }
 }
 
@@ -58,6 +82,7 @@ struct ContentView: View {
     @State private var showingSecondView = false
     @AppStorage("savedProjects") private var savedProjectsData: Data = Data()
     @State private var showAlert = false
+    @State private var selectedUnit: GoalUnit = .pieces
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) }
@@ -362,25 +387,51 @@ struct ContentView: View {
                                             }
                                         }
                                     
-                                    TextField("Enter number", text: $inputNumber)
-                                        .textFieldStyle(CustomTextFieldStyle())
-                                        .keyboardType(.numberPad)
-                                        .padding(.horizontal)
-                                        .background(Color.customBeige.opacity(0.1))
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
-                                        )
-                                        .toolbar {
-                                            ToolbarItemGroup(placement: .keyboard) {
-                                                Spacer()
-                                                Button("Done") {
-                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                        to: nil, from: nil, for: nil)
+                                    HStack {
+                                        TextField("Enter number", text: $inputNumber)
+                                            .textFieldStyle(CustomTextFieldStyle())
+                                            .keyboardType(.numberPad)
+                                            .padding(.horizontal)
+                                            .background(Color.customBeige.opacity(0.1))
+                                            .cornerRadius(12)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
+                                            )
+                                            .toolbar {
+                                                ToolbarItemGroup(placement: .keyboard) {
+                                                    Spacer()
+                                                    Button("Done") {
+                                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                            to: nil, from: nil, for: nil)
+                                                    }
+                                                }
+                                            }
+                                        
+                                        Picker("Unit", selection: $selectedUnit) {
+                                            Section(header: Text("Количество").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.pieces, .packs, .kilograms, .liters, .meters], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
+                                                }
+                                            }
+                                            
+                                            Section(header: Text("Деньги").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.euro, .dollar, .ruble, .tenge], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
+                                                }
+                                            }
+                                            
+                                            Section(header: Text("Время").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.days, .weeks, .months, .hours], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
                                                 }
                                             }
                                         }
+                                        .pickerStyle(.menu)
+                                        .frame(width: 80)
+                                        .background(Color.customBeige)
+                                        .cornerRadius(12)
+                                    }
                                 }
                             }
                             
@@ -600,7 +651,8 @@ struct ContentView: View {
             goals.append(Goal(
                 text: inputText,
                 totalNumber: inputNumber,
-                remainingNumber: inputNumber
+                remainingNumber: inputNumber,
+                unit: selectedUnit
             ))
             clearInputs()
         }
@@ -619,7 +671,8 @@ struct ContentView: View {
             goals[index] = Goal(
                 text: inputText,
                 totalNumber: inputNumber,
-                remainingNumber: inputNumber
+                remainingNumber: inputNumber,
+                unit: selectedUnit
             )
             clearInputs()
             isEditing = false
