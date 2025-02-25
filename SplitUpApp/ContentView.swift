@@ -479,6 +479,32 @@ struct ContentView: View {
                                             .frame(width: UIScreen.main.bounds.width * 0.5)
                                     }
                                 )
+                                
+                                if let goal = goals[safe: selectedGoalIndex],
+                                   !goal.isCompleted {
+                                    Button(action: {
+                                        if !showGrid {
+                                            showAlert = true
+                                        } else {
+                                            withAnimation {
+                                                if let remainingAmount = Int(goal.remainingNumber) {
+                                                    goals[selectedGoalIndex].remainingNumber = "0"
+                                                    goals[selectedGoalIndex].isCompleted = true
+                                                    
+                                                    let goalCells = getCellsForGoal(goal)
+                                                    colorRandomCells(count: remainingAmount, 
+                                                                   goalId: goal.id, 
+                                                                   markAsCompleted: true)
+                                                }
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(showGrid ? .green : .green.opacity(0.3))
+                                            .font(.system(size: 20))
+                                    }
+                                    .disabled(!showGrid)
+                                }
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.08)
                             .background(Color.customNavy)
@@ -493,7 +519,7 @@ struct ContentView: View {
                             }
                             
                             if let selectedGoal = goals[safe: selectedGoalIndex],
-                               !selectedGoal.isCompleted {
+                               !selectedGoal.isCompleted && showGrid {
                                 HStack(spacing: 15) {
                                     TextField("Enter completed amount", text: $partialCompletion)
                                         .textFieldStyle(CustomTextFieldStyle())
@@ -520,7 +546,6 @@ struct ContentView: View {
                                         if let partialAmount = Int(partialCompletion),
                                            let remainingAmount = Int(selectedGoal.remainingNumber),
                                            partialAmount <= remainingAmount {
-                                            
                                             let newRemaining = remainingAmount - partialAmount
                                             
                                             if let index = goals.firstIndex(where: { $0.id == selectedGoal.id }) {
