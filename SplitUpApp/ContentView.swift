@@ -620,28 +620,54 @@ struct ContentView: View {
             NavigationView {
                 List {
                     ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
-                        Button(action: {
-                            selectedGoalIndex = index
-                            showGoalsList = false
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(goal.text)
-                                        .font(.system(size: 17, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .strikethrough(goal.isCompleted)
+                        HStack {
+                            Button(action: {
+                                selectedGoalIndex = index
+                                showGoalsList = false
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(goal.text)
+                                            .font(.system(size: 17, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .strikethrough(goal.isCompleted)
+                                        
+                                        Text(goal.progress)
+                                            .font(.system(size: 15))
+                                            .foregroundColor(.customAccent)
+                                    }
                                     
-                                    Text(goal.progress)
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.customAccent)
+                                    Spacer()
                                 }
-                                
-                                Spacer()
-                                
-                                if goal.isCompleted {
+                            }
+                            
+                            if !goal.isCompleted {
+                                Button(action: {
+                                    if showGrid {
+                                        withAnimation {
+                                            if let remainingAmount = Int(goal.remainingNumber) {
+                                                goals[index].remainingNumber = "0"
+                                                goals[index].isCompleted = true
+                                                
+                                                let goalCells = getCellsForGoal(goal)
+                                                colorRandomCells(count: remainingAmount, 
+                                                               goalId: goal.id, 
+                                                               markAsCompleted: true)
+                                            }
+                                        }
+                                    } else {
+                                        showAlert = true
+                                    }
+                                }) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                        .foregroundColor(showGrid ? .green : .green.opacity(0.3))
+                                        .font(.system(size: 20))
                                 }
+                                .disabled(!showGrid)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 20))
                             }
                         }
                         .listRowBackground(Color.customNavy)
@@ -658,6 +684,13 @@ struct ContentView: View {
                         }
                         .foregroundColor(.white)
                     }
+                }
+                .alert(isPresented: $showAlert) {
+                    Alert(
+                        title: Text("Image Not Divided"),
+                        message: Text("Please divide the image first by clicking 'Divide Image' button."),
+                        dismissButton: .default(Text("OK"))
+                    )
                 }
             }
             .preferredColorScheme(.dark)
