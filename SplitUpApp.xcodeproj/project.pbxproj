@@ -18,6 +18,7 @@
 		AAE102EC2D5BEBA10025A6C2 /* SplitUpAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102EB2D5BEBA10025A6C2 /* SplitUpAppTests.swift */; };
 		AAE102F62D5BEBA10025A6C2 /* SplitUpAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102F52D5BEBA10025A6C2 /* SplitUpAppUITests.swift */; };
 		AAE102F82D5BEBA10025A6C2 /* SplitUpAppUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102F72D5BEBA10025A6C2 /* SplitUpAppUITestsLaunchTests.swift */; };
+		AAF74A8A2D6F0E7500A5859A /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF74A892D6F0E7500A5859A /* CalendarView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +53,7 @@
 		AAE102F12D5BEBA10025A6C2 /* SplitUpAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SplitUpAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAE102F52D5BEBA10025A6C2 /* SplitUpAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitUpAppUITests.swift; sourceTree = "<group>"; };
 		AAE102F72D5BEBA10025A6C2 /* SplitUpAppUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitUpAppUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		AAF74A892D6F0E7500A5859A /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +112,7 @@
 				AA6F17962D64A22300DED347 /* LaunchScreen.storyboard */,
 				AA8655882D6E03B30063DE78 /* Colors.swift */,
 				AA0708522D6E051800D76788 /* CustomTextFieldStyle.swift */,
+				AAF74A892D6F0E7500A5859A /* CalendarView.swift */,
 			);
 			path = SplitUpApp;
 			sourceTree = "<group>";
@@ -272,6 +275,7 @@
 			files = (
 				AA97B9242D5D1C890017C729 /* SecondView.swift in Sources */,
 				AA8655892D6E03B30063DE78 /* Colors.swift in Sources */,
+				AAF74A8A2D6F0E7500A5859A /* CalendarView.swift in Sources */,
 				AAE102DD2D5BEBA00025A6C2 /* ContentView.swift in Sources */,
 				AAE102DB2D5BEBA00025A6C2 /* SplitUpAppApp.swift in Sources */,
 				AA0708532D6E051800D76788 /* CustomTextFieldStyle.swift in Sources */,

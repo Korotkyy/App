@@ -95,6 +95,7 @@ struct ContentView: View {
     @State private var selectedUnit: GoalUnit = .pieces
     @State private var showGoalsList = false
     @State private var showEditForm = false
+    @State private var showingCalendar = false
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + $1.scaledSquares }
@@ -242,7 +243,53 @@ struct ContentView: View {
                     .ignoresSafeArea()
                 
                 VStack {
-                    if let image = selectedImage {
+                    if selectedImage == nil {
+                        // Кнопка Calendar
+                        Button(action: {
+                            showingCalendar = true
+                        }) {
+                            VStack {
+                                Text(Date().formatted(date: .abbreviated, time: .omitted))
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.customBeige)
+                                
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.customBeige)
+                            }
+                            .frame(width: 160, height: 100)
+                            .background(Color.customNavy)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .padding(.bottom, 20)
+                        
+                        // Кнопка Upload Image
+                        PhotosPicker(
+                            selection: $selectedItem,
+                            matching: .images
+                        ) {
+                            VStack {
+                                Image(systemName: "photo.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.customBeige)
+                                
+                                Text("Upload Image")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.customBeige)
+                            }
+                            .frame(width: 160, height: 100)
+                            .background(Color.customNavy)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                    } else {
                         HStack(spacing: 20) {
                             Button(action: {
                                 saveProject()
@@ -286,7 +333,7 @@ struct ContentView: View {
                             ZStack {
                                 GeometryReader { geometry in
                                     ZStack {
-                                        image
+                                        selectedImage!
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -302,7 +349,7 @@ struct ContentView: View {
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
                                             if cells[index].isColored {
-                                                image
+                                                selectedImage!
                                                     .resizable()
                                                     .scaledToFill()
                                                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -339,7 +386,7 @@ struct ContentView: View {
                             .frame(height: UIScreen.main.bounds.height * 0.4)
                             .padding(.horizontal)
                         } else {
-                            image
+                            selectedImage!
                                 .resizable()
                                 .scaledToFit()
                         }
@@ -455,12 +502,11 @@ struct ContentView: View {
                         HStack {
                             // Красный крестик всегда виден
                             Button(action: {
-                                if let goal = goals[safe: selectedGoalIndex] {
-                                    withAnimation {
-                                        goals.remove(at: selectedGoalIndex)
-                                        if selectedGoalIndex >= goals.count {
-                                            selectedGoalIndex = max(goals.count - 1, 0)
-                                        }
+                                if selectedGoalIndex >= goals.count { return }
+                                withAnimation {
+                                    goals.remove(at: selectedGoalIndex)
+                                    if selectedGoalIndex >= goals.count {
+                                        selectedGoalIndex = max(goals.count - 1, 0)
                                     }
                                 }
                             }) {
@@ -577,29 +623,6 @@ struct ContentView: View {
                                 .cornerRadius(12)
                             }
                             .padding(.horizontal)
-                        }
-                    } else {
-                        // Кнопка Upload Image
-                        PhotosPicker(
-                            selection: $selectedItem,
-                            matching: .images
-                        ) {
-                            VStack {
-                                Image(systemName: "photo.fill")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.customBeige)
-                                
-                                Text("Upload Image")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(.customBeige)
-                            }
-                            .frame(width: 160, height: 100)
-                            .background(Color.customNavy)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
-                            )
                         }
                     }
                 }
@@ -728,6 +751,15 @@ struct ContentView: View {
                 }
             }
             .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showingCalendar) {
+            CalendarView(
+                savedProjects: $savedProjects,
+                selectedImage: $selectedImage,
+                goals: $goals,
+                cells: $cells,
+                showGrid: $showGrid
+            )
         }
         .onChange(of: selectedItem) { newValue in
             Task {
