@@ -17,6 +17,7 @@ struct DayView: View {
     let date: Date
     @Binding var selectedEvents: [CalendarEvent]
     let saveEvents: () -> Void
+    let deleteEvent: (CalendarEvent) -> Void
     @State private var showingEventSheet = false
     @State private var newEventTitle = ""
     @State private var newEventNotes = ""
@@ -37,12 +38,11 @@ struct DayView: View {
         .sorted { $0.time < $1.time }
     }
     
-    private func deleteEvent(at offsets: IndexSet) {
-        let eventsToDelete = offsets.map { eventsForDay[$0] }
-        selectedEvents.removeAll { event in
-            eventsToDelete.contains { $0.id == event.id }
+    private func deleteEvents(at offsets: IndexSet) {
+        for index in offsets {
+            let event = eventsForDay[index]
+            deleteEvent(event)
         }
-        saveEvents()
     }
     
     var body: some View {
@@ -52,17 +52,20 @@ struct DayView: View {
             VStack {
                 List {
                     ForEach(eventsForDay) { event in
-                        EventRow(event: event) {
-                            // Начать редактирование
-                            editingEvent = event
-                            newEventTitle = event.title
-                            newEventNotes = event.notes
-                            newEventTime = event.time
-                            isEditing = true
-                            showingEventSheet = true
-                        }
+                        EventRow(
+                            event: event,
+                            onEdit: {
+                                editingEvent = event
+                                newEventTitle = event.title
+                                newEventNotes = event.notes
+                                newEventTime = event.time
+                                isEditing = true
+                                showingEventSheet = true
+                            },
+                            onDelete: deleteEvent
+                        )
                     }
-                    .onDelete(perform: deleteEvent)
+                    .onDelete(perform: deleteEvents)
                 }
                 .listStyle(.plain)
                 
@@ -138,6 +141,7 @@ struct DayView: View {
 struct EventRow: View {
     let event: CalendarEvent
     let onEdit: () -> Void
+    let onDelete: (CalendarEvent) -> Void
     
     var body: some View {
         HStack {
@@ -158,7 +162,6 @@ struct EventRow: View {
             
             Spacer()
             
-            // Кнопка редактирования
             Button(action: onEdit) {
                 Image(systemName: "pencil.circle.fill")
                     .foregroundColor(.customAccent)
@@ -167,11 +170,175 @@ struct EventRow: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                // Удаление обрабатывается через onDelete
+                onDelete(event)
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+}
+
+struct CalendarUnderlineModifier: ViewModifier {
+    let hasEvents: (Date) -> Bool
+    let selectedDate: Date
+    
+    func body(content: Content) -> some View {
+        content.overlay(
+            GeometryReader { geometry in
+                let calendar = Calendar.current
+                let currentMonth = calendar.component(.month, from: selectedDate)
+                let currentYear = calendar.component(.year, from: selectedDate)
+                
+                ForEach(1...31, id: \.self) { day in
+                    if let date = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: day)) {
+                        if hasEvents(date) {
+                            Rectangle()
+                                .fill(Color.customAccent)
+                                .frame(width: 25, height: 1)
+                                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        }
+                    }
+                }
+            }
+        )
+    }
+}
+
+struct CustomCalendarView: View {
+    @Binding var selectedDate: Date
+    let hasEvents: (Date) -> Bool
+    let onDateSelected: () -> Void
+    
+    private let calendar = Calendar.current
+    private let daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    @State private var currentMonth: Date
+    
+    init(selectedDate: Binding<Date>, hasEvents: @escaping (Date) -> Bool, onDateSelected: @escaping () -> Void) {
+        self._selectedDate = selectedDate
+        self.hasEvents = hasEvents
+        self.onDateSelected = onDateSelected
+        self._currentMonth = State(initialValue: selectedDate.wrappedValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Заголовок месяца и кнопки навигации
+            HStack {
+                Button(action: previousMonth) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+                
+                Text(currentMonth.formatted(.dateTime.year().month()))
+                    .font(.title3)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Button(action: nextMonth) {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal)
+            
+            // Дни недели
+            HStack {
+                ForEach(daysOfWeek, id: \.self) { day in
+                    Text(day)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Дни месяца
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 10) {
+                ForEach(getDaysInMonth(), id: \.self) { date in
+                    if let date = date {
+                        DayCell(
+                            date: date,
+                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                            isCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
+                            hasEvent: hasEvents(date)
+                        )
+                        .onTapGesture {
+                            selectedDate = date
+                            onDateSelected()
+                        }
+                    } else {
+                        Color.clear
+                            .frame(height: 35)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.customNavy)
+        .cornerRadius(12)
+    }
+    
+    private func getDaysInMonth() -> [Date?] {
+        let interval = calendar.dateInterval(of: .month, for: currentMonth)!
+        let firstWeekday = calendar.component(.weekday, from: interval.start)
+        let offsetDays = (firstWeekday - calendar.firstWeekday + 7) % 7
+        
+        let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!.count
+        
+        var days: [Date?] = Array(repeating: nil, count: offsetDays)
+        
+        for day in 1...daysInMonth {
+            if let date = calendar.date(from: DateComponents(year: calendar.component(.year, from: currentMonth),
+                                                           month: calendar.component(.month, from: currentMonth),
+                                                           day: day)) {
+                days.append(date)
+            }
+        }
+        
+        while days.count < 42 {
+            days.append(nil)
+        }
+        
+        return days
+    }
+    
+    private func previousMonth() {
+        if let newDate = calendar.date(byAdding: .month, value: -1, to: currentMonth) {
+            currentMonth = newDate
+        }
+    }
+    
+    private func nextMonth() {
+        if let newDate = calendar.date(byAdding: .month, value: 1, to: currentMonth) {
+            currentMonth = newDate
+        }
+    }
+}
+
+struct DayCell: View {
+    let date: Date
+    let isSelected: Bool
+    let isCurrentMonth: Bool
+    let hasEvent: Bool
+    
+    var body: some View {
+        ZStack {
+            if isSelected {
+                Circle()
+                    .fill(Color.customAccent)
+                    .frame(width: 40, height: 40)
+            }
+            
+            Text("\(Calendar.current.component(.day, from: date))")
+                .font(.system(size: 17))
+                .foregroundColor(
+                    isSelected ? .black :
+                        isCurrentMonth ? (hasEvent ? Color.customAccent : .white) : .gray
+                )
+        }
+        .frame(width: 40, height: 40)
     }
 }
 
@@ -213,63 +380,43 @@ struct CalendarView: View {
         .sorted { $0.time < $1.time }
     }
     
+    private func deleteEvent(_ event: CalendarEvent) {
+        withAnimation {
+            selectedEvents.removeAll { $0.id == event.id }
+            saveEvents()
+            
+            // Если после удаления в текущем дне нет событий, закрываем DayView
+            if eventsForSelectedDate.isEmpty {
+                showDayView = false
+            }
+        }
+    }
+    
+    private func hasEvents(for date: Date) -> Bool {
+        let calendar = Calendar.current
+        let dateToCheck = calendar.startOfDay(for: date)
+        
+        // Просто проверяем, есть ли хотя бы одно событие на эту дату
+        if selectedEvents.contains(where: { calendar.startOfDay(for: $0.date) == dateToCheck }) {
+            return true  // Есть события - подчеркиваем
+        }
+        return false    // Нет событий - не подчеркиваем
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color.customDarkNavy.ignoresSafeArea()
                 
                 VStack {
-                    DatePicker(
-                        "Select Date",
-                        selection: $selectedDate,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.graphical)
-                    .tint(Color.customAccent)
-                    .padding()
-                    .background(Color.customNavy)
-                    .cornerRadius(12)
-                    .padding()
-                    .onChange(of: selectedDate) { _ in
-                        showDayView = true
-                    }
-                    
-                    // Список событий под календарем
-                    if !eventsForSelectedDate.isEmpty {
-                        VStack(alignment: .leading) {
-                            Text("Events")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal)
-                            
-                            List {
-                                ForEach(eventsForSelectedDate) { event in
-                                    Button(action: {
-                                        showDayView = true
-                                    }) {
-                                        HStack {
-                                            VStack(alignment: .leading) {
-                                                Text(event.title)
-                                                    .font(.system(size: 17, weight: .medium))
-                                                    .foregroundColor(.white)
-                                                Text(event.time, style: .time)
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.customAccent)
-                                            }
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.right")
-                                                .foregroundColor(.customAccent)
-                                        }
-                                    }
-                                    .listRowBackground(Color.customNavy)
-                                }
-                            }
-                            .listStyle(.plain)
-                            .frame(height: min(CGFloat(eventsForSelectedDate.count) * 60, 180))
+                    CustomCalendarView(
+                        selectedDate: $selectedDate,
+                        hasEvents: hasEvents,
+                        onDateSelected: {
+                            showDayView = true
                         }
-                        .padding(.top)
-                    }
+                    )
+                    .padding()
                     
                     Spacer()
                 }
@@ -316,7 +463,8 @@ struct CalendarView: View {
                     DayView(
                         date: selectedDate,
                         selectedEvents: $selectedEvents,
-                        saveEvents: saveEvents
+                        saveEvents: saveEvents,
+                        deleteEvent: deleteEvent
                     )
                 } label: {
                     EmptyView()
