@@ -209,8 +209,14 @@ struct CustomCalendarView: View {
     let hasEvents: (Date) -> Bool
     let onDateSelected: () -> Void
     
-    private let calendar = Calendar.current
-    private let daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    private var calendar: Calendar {
+        var cal = Calendar.current
+        cal.firstWeekday = 1  // 1 = Воскресенье, 2 = Понедельник
+        cal.locale = Locale(identifier: "en_US")  // Используем US локаль для консистентности
+        return cal
+    }
+    
+    private let daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]  // Убедимся, что порядок соответствует календарю
     @State private var currentMonth: Date
     
     init(selectedDate: Binding<Date>, hasEvents: @escaping (Date) -> Bool, onDateSelected: @escaping () -> Void) {
@@ -283,6 +289,11 @@ struct CustomCalendarView: View {
     private func getDaysInMonth() -> [Date?] {
         let interval = calendar.dateInterval(of: .month, for: currentMonth)!
         let firstWeekday = calendar.component(.weekday, from: interval.start)
+        
+        // Добавим отладочную печать
+        print("First weekday of month: \(firstWeekday)")
+        print("Calendar first weekday: \(calendar.firstWeekday)")
+        
         let offsetDays = (firstWeekday - calendar.firstWeekday + 7) % 7
         
         let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!.count
