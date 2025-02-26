@@ -21,6 +21,8 @@ struct DayView: View {
     @State private var newEventTitle = ""
     @State private var newEventNotes = ""
     @State private var newEventTime = Date()
+    @State private var isEditing = false
+    @State private var editingEvent: CalendarEvent?
     @Environment(\.dismiss) var dismiss
     
     var eventsForDay: [CalendarEvent] {
@@ -34,39 +36,45 @@ struct DayView: View {
             VStack {
                 List {
                     ForEach(eventsForDay) { event in
-                        VStack(alignment: .leading) {
-                            Text(event.title)
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            Text(event.time, style: .time)
-                                .font(.subheadline)
-                                .foregroundColor(.customAccent)
-                            if !event.notes.isEmpty {
-                                Text(event.notes)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
+                        EventRow(event: event) {
+                            // Начать редактирование
+                            editingEvent = event
+                            newEventTitle = event.title
+                            newEventNotes = event.notes
+                            newEventTime = event.time
+                            isEditing = true
+                            showingEventSheet = true
                         }
-                        .padding(.vertical, 5)
                     }
                     .onDelete(perform: deleteEvent)
                 }
                 .listStyle(.plain)
+                
+                // Добавляем кнопку внизу экрана
+                Button {
+                    editingEvent = nil
+                    newEventTitle = ""
+                    newEventNotes = ""
+                    newEventTime = Date()
+                    isEditing = false
+                    showingEventSheet = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Event")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.customAccent)
+                    .cornerRadius(12)
+                }
+                .padding()
             }
         }
         .navigationTitle(date.formatted(date: .complete, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showingEventSheet = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.customAccent)
-                }
-            }
-        }
         .sheet(isPresented: $showingEventSheet) {
             NavigationView {
                 Form {
@@ -74,23 +82,32 @@ struct DayView: View {
                     DatePicker("Time", selection: $newEventTime, displayedComponents: [.hourAndMinute])
                     TextField("Notes", text: $newEventNotes)
                 }
-                .navigationTitle("New Event")
+                .navigationTitle(isEditing ? "Edit Event" : "New Event")
                 .navigationBarItems(
                     leading: Button("Cancel") {
                         showingEventSheet = false
                     },
-                    trailing: Button("Add") {
-                        let newEvent = CalendarEvent(
-                            id: UUID(),
-                            title: newEventTitle,
-                            date: date,
-                            notes: newEventNotes,
-                            time: newEventTime
-                        )
-                        selectedEvents.append(newEvent)
+                    trailing: Button(isEditing ? "Save" : "Add") {
+                        if isEditing {
+                            // Обновляем существующее событие
+                            if let editingEvent = editingEvent,
+                               let index = selectedEvents.firstIndex(where: { $0.id == editingEvent.id }) {
+                                selectedEvents[index].title = newEventTitle
+                                selectedEvents[index].notes = newEventNotes
+                                selectedEvents[index].time = newEventTime
+                            }
+                        } else {
+                            // Создаем новое событие
+                            let newEvent = CalendarEvent(
+                                id: UUID(),
+                                title: newEventTitle,
+                                date: date,
+                                notes: newEventNotes,
+                                time: newEventTime
+                            )
+                            selectedEvents.append(newEvent)
+                        }
                         showingEventSheet = false
-                        newEventTitle = ""
-                        newEventNotes = ""
                     }
                     .disabled(newEventTitle.isEmpty)
                 )
@@ -103,6 +120,47 @@ struct DayView: View {
             if let eventToDelete = eventsForDay[safe: index],
                let indexInMainArray = selectedEvents.firstIndex(where: { $0.id == eventToDelete.id }) {
                 selectedEvents.remove(at: indexInMainArray)
+            }
+        }
+    }
+}
+
+// Отдельное представление для строки события
+struct EventRow: View {
+    let event: CalendarEvent
+    let onEdit: () -> Void
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(event.title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Text(event.time, style: .time)
+                    .font(.subheadline)
+                    .foregroundColor(.customAccent)
+                if !event.notes.isEmpty {
+                    Text(event.notes)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding(.vertical, 5)
+            
+            Spacer()
+            
+            // Кнопка редактирования
+            Button(action: onEdit) {
+                Image(systemName: "pencil.circle.fill")
+                    .foregroundColor(.customAccent)
+                    .font(.title3)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                // Удаление обрабатывается через onDelete
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }
@@ -140,18 +198,22 @@ struct CalendarView: View {
                 Color.customDarkNavy.ignoresSafeArea()
                 
                 VStack {
-                    DatePicker(
-                        "Select Date",
-                        selection: $selectedDate,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.graphical)
-                    .padding()
-                    .background(Color.customNavy)
-                    .cornerRadius(12)
-                    .padding()
-                    .onChange(of: selectedDate) { _ in
+                    Button(action: {
                         showDayView = true
+                    }) {
+                        DatePicker(
+                            "Select Date",
+                            selection: $selectedDate,
+                            displayedComponents: [.date]
+                        )
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .background(Color.customNavy)
+                        .cornerRadius(12)
+                        .padding()
+                        .onChange(of: selectedDate) { _ in
+                            showDayView = true
+                        }
                     }
                     
                     Spacer()

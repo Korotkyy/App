@@ -267,7 +267,7 @@ struct ContentView: View {
                         }
                         .padding(.bottom, 20)
                         
-                        // Кнопка Upload Image
+                        // Кнопка New Goal (бывшая Upload Image)
                         PhotosPicker(
                             selection: $selectedItem,
                             matching: .images
@@ -277,7 +277,30 @@ struct ContentView: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(.customBeige)
                                 
-                                Text("Upload Image")
+                                Text("New Goal")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.customBeige)
+                            }
+                            .frame(width: 160, height: 100)
+                            .background(Color.customNavy)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .padding(.bottom, 20)
+                        
+                        // Новая кнопка My Goals
+                        Button(action: {
+                            showingSecondView = true
+                        }) {
+                            VStack {
+                                Image(systemName: "list.bullet")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.customBeige)
+                                
+                                Text("My Goals")
                                     .font(.system(size: 17, weight: .medium))
                                     .foregroundColor(.customBeige)
                             }
