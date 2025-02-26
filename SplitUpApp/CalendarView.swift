@@ -26,7 +26,11 @@ struct DayView: View {
     @Environment(\.dismiss) var dismiss
     
     var eventsForDay: [CalendarEvent] {
-        selectedEvents.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
+        selectedEvents.filter { event in
+            // Проверяем, что событие именно этого дня
+            let calendar = Calendar.current
+            return calendar.isDate(event.date, equalTo: date, toGranularity: .day)
+        }
     }
     
     var body: some View {
@@ -192,28 +196,73 @@ struct CalendarView: View {
         }
     }
     
+    // Добавляем вычисляемое свойство для фильтрации событий текущего дня
+    var eventsForSelectedDate: [CalendarEvent] {
+        selectedEvents.filter { event in
+            let calendar = Calendar.current
+            return calendar.isDate(event.date, equalTo: selectedDate, toGranularity: .day)
+        }
+    }
+    
+    // Функция для проверки наличия событий в определенный день
+    private func hasEvents(for date: Date) -> Bool {
+        selectedEvents.contains { event in
+            Calendar.current.isDate(event.date, equalTo: date, toGranularity: .day)
+        }
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color.customDarkNavy.ignoresSafeArea()
                 
                 VStack {
-                    Button(action: {
-                        showDayView = true
-                    }) {
-                        DatePicker(
-                            "Select Date",
-                            selection: $selectedDate,
-                            displayedComponents: [.date]
-                        )
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .background(Color.customNavy)
-                        .cornerRadius(12)
-                        .padding()
-                        .onChange(of: selectedDate) { _ in
-                            showDayView = true
+                    CalendarViewRepresentable(
+                        selectedDate: $selectedDate,
+                        events: selectedEvents,
+                        showDayView: $showDayView
+                    )
+                    .frame(height: 360)
+                    .padding()
+                    .background(Color.customNavy)
+                    .cornerRadius(12)
+                    .padding()
+                    
+                    // Добавляем список событий под календарем
+                    if !eventsForSelectedDate.isEmpty {
+                        VStack(alignment: .leading) {
+                            Text("Events")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal)
+                            
+                            List {
+                                ForEach(eventsForSelectedDate) { event in
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(event.title)
+                                                .font(.system(size: 17, weight: .medium))
+                                                .foregroundColor(.white)
+                                            Text(event.time, style: .time)
+                                                .font(.subheadline)
+                                                .foregroundColor(.customAccent)
+                                        }
+                                        Spacer()
+                                        
+                                        Button(action: {
+                                            showDayView = true
+                                        }) {
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(.customAccent)
+                                        }
+                                    }
+                                    .listRowBackground(Color.customNavy)
+                                }
+                            }
+                            .listStyle(.plain)
+                            .frame(height: min(CGFloat(eventsForSelectedDate.count) * 60, 180))
                         }
+                        .padding(.top)
                     }
                     
                     Spacer()
@@ -282,6 +331,70 @@ struct CalendarView: View {
         }
         .onAppear {
             loadEvents()
+        }
+    }
+}
+
+// UICalendarView wrapper
+struct CalendarViewRepresentable: UIViewRepresentable {
+    @Binding var selectedDate: Date
+    let events: [CalendarEvent]
+    @Binding var showDayView: Bool
+    
+    func makeUIView(context: Context) -> UICalendarView {
+        let calendarView = UICalendarView()
+        calendarView.delegate = context.coordinator
+        calendarView.calendar = Calendar.current
+        calendarView.backgroundColor = .clear
+        
+        let dateSelection = UICalendarSelectionSingleDate(delegate: context.coordinator)
+        calendarView.selectionBehavior = dateSelection
+        
+        // Добавляем декоратор для точек
+        calendarView.delegate = context.coordinator
+        
+        return calendarView
+    }
+    
+    func updateUIView(_ uiView: UICalendarView, context: Context) {
+        // Обновляем точки при изменении событий
+        uiView.reloadDecorations(forDateComponents: nil, animated: true)
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+    
+    class Coordinator: NSObject, UICalendarViewDelegate, UICalendarSelectionSingleDateDelegate {
+        let parent: CalendarViewRepresentable
+        
+        init(parent: CalendarViewRepresentable) {
+            self.parent = parent
+        }
+        
+        func calendarView(_ calendarView: UICalendarView, decorationFor dateComponents: DateComponents) -> UICalendarView.Decoration? {
+            // Проверяем, есть ли события в этот день
+            let date = Calendar.current.date(from: dateComponents)!
+            let hasEvents = parent.events.contains { event in
+                Calendar.current.isDate(event.date, equalTo: date, toGranularity: .day)
+            }
+            
+            if hasEvents {
+                return .customView {
+                    let circle = UIView(frame: CGRect(x: 0, y: 0, width: 6, height: 6))
+                    circle.backgroundColor = UIColor(Color.customAccent)
+                    circle.layer.cornerRadius = 3
+                    return circle
+                }
+            }
+            return nil
+        }
+        
+        func dateSelection(_ selection: UICalendarSelectionSingleDate, didSelectDate dateComponents: DateComponents?) {
+            if let date = dateComponents?.date {
+                parent.selectedDate = date
+                parent.showDayView = true
+            }
         }
     }
 }
