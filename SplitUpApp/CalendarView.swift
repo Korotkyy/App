@@ -217,18 +217,25 @@ struct CalendarView: View {
                 Color.customDarkNavy.ignoresSafeArea()
                 
                 VStack {
-                    CalendarViewRepresentable(
-                        selectedDate: $selectedDate,
-                        events: selectedEvents,
-                        showDayView: $showDayView
-                    )
-                    .frame(height: 360)
-                    .padding()
-                    .background(Color.customNavy)
-                    .cornerRadius(12)
-                    .padding()
+                    Button(action: {
+                        showDayView = true
+                    }) {
+                        DatePicker(
+                            "Select Date",
+                            selection: $selectedDate,
+                            displayedComponents: [.date]
+                        )
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .background(Color.customNavy)
+                        .cornerRadius(12)
+                        .padding()
+                        .onChange(of: selectedDate) { _ in
+                            showDayView = true
+                        }
+                    }
                     
-                    // Добавляем список событий под календарем
+                    // Список событий под календарем
                     if !eventsForSelectedDate.isEmpty {
                         VStack(alignment: .leading) {
                             Text("Events")
