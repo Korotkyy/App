@@ -33,6 +33,13 @@ struct DayView: View {
         }
     }
     
+    private func deleteEvent(at offsets: IndexSet) {
+        let eventsToDelete = offsets.map { eventsForDay[$0] }
+        selectedEvents.removeAll { event in
+            eventsToDelete.contains { $0.id == event.id }
+        }
+    }
+    
     var body: some View {
         ZStack {
             Color.customDarkNavy.ignoresSafeArea()
@@ -96,9 +103,11 @@ struct DayView: View {
                             // Обновляем существующее событие
                             if let editingEvent = editingEvent,
                                let index = selectedEvents.firstIndex(where: { $0.id == editingEvent.id }) {
-                                selectedEvents[index].title = newEventTitle
-                                selectedEvents[index].notes = newEventNotes
-                                selectedEvents[index].time = newEventTime
+                                var updatedEvent = selectedEvents[index]
+                                updatedEvent.title = newEventTitle
+                                updatedEvent.notes = newEventNotes
+                                updatedEvent.time = newEventTime
+                                selectedEvents[index] = updatedEvent
                             }
                         } else {
                             // Создаем новое событие
@@ -115,15 +124,6 @@ struct DayView: View {
                     }
                     .disabled(newEventTitle.isEmpty)
                 )
-            }
-        }
-    }
-    
-    private func deleteEvent(at offsets: IndexSet) {
-        for index in offsets {
-            if let eventToDelete = eventsForDay[safe: index],
-               let indexInMainArray = selectedEvents.firstIndex(where: { $0.id == eventToDelete.id }) {
-                selectedEvents.remove(at: indexInMainArray)
             }
         }
     }
@@ -225,6 +225,17 @@ struct CalendarView: View {
                         .onChange(of: selectedDate) { _ in
                             showDayView = true
                         }
+                        .overlay(
+                            // Добавляем точки для дней с событиями
+                            ForEach(selectedEvents) { event in
+                                if Calendar.current.isDate(event.date, equalTo: selectedDate, toGranularity: .day) {
+                                    Circle()
+                                        .fill(Color.customAccent)
+                                        .frame(width: 6, height: 6)
+                                        .offset(y: 20) // Регулируйте это значение для правильного позиционирования
+                                }
+                            }
+                        )
                     }
                     
                     // Список событий под календарем
