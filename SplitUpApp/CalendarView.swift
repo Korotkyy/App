@@ -8,15 +8,15 @@ struct CalendarEvent: Identifiable, Codable, Equatable {
     var notes: String
     var time: Date
     
-    // Добавляем реализацию Equatable
     static func == (lhs: CalendarEvent, rhs: CalendarEvent) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id  // Сравниваем только по id
     }
 }
 
 struct DayView: View {
     let date: Date
     @Binding var selectedEvents: [CalendarEvent]
+    let saveEvents: () -> Void
     @State private var showingEventSheet = false
     @State private var newEventTitle = ""
     @State private var newEventNotes = ""
@@ -26,11 +26,15 @@ struct DayView: View {
     @Environment(\.dismiss) var dismiss
     
     var eventsForDay: [CalendarEvent] {
-        selectedEvents.filter { event in
-            // Проверяем, что событие именно этого дня
-            let calendar = Calendar.current
-            return calendar.isDate(event.date, equalTo: date, toGranularity: .day)
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return selectedEvents.filter { event in
+            let eventDate = calendar.startOfDay(for: event.date)
+            return eventDate == startOfDay
         }
+        .sorted { $0.time < $1.time }
     }
     
     private func deleteEvent(at offsets: IndexSet) {
@@ -38,6 +42,7 @@ struct DayView: View {
         selectedEvents.removeAll { event in
             eventsToDelete.contains { $0.id == event.id }
         }
+        saveEvents()
     }
     
     var body: some View {
@@ -100,7 +105,6 @@ struct DayView: View {
                     },
                     trailing: Button(isEditing ? "Save" : "Add") {
                         if isEditing {
-                            // Обновляем существующее событие
                             if let editingEvent = editingEvent,
                                let index = selectedEvents.firstIndex(where: { $0.id == editingEvent.id }) {
                                 var updatedEvent = selectedEvents[index]
@@ -108,9 +112,9 @@ struct DayView: View {
                                 updatedEvent.notes = newEventNotes
                                 updatedEvent.time = newEventTime
                                 selectedEvents[index] = updatedEvent
+                                saveEvents()
                             }
                         } else {
-                            // Создаем новое событие
                             let newEvent = CalendarEvent(
                                 id: UUID(),
                                 title: newEventTitle,
@@ -119,6 +123,7 @@ struct DayView: View {
                                 time: newEventTime
                             )
                             selectedEvents.append(newEvent)
+                            saveEvents()
                         }
                         showingEventSheet = false
                     }
@@ -197,10 +202,15 @@ struct CalendarView: View {
     }
     
     var eventsForSelectedDate: [CalendarEvent] {
-        selectedEvents.filter { event in
-            let calendar = Calendar.current
-            return calendar.isDate(event.date, equalTo: selectedDate, toGranularity: .day)
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: selectedDate)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return selectedEvents.filter { event in
+            let eventDate = calendar.startOfDay(for: event.date)
+            return eventDate == startOfDay
         }
+        .sorted { $0.time < $1.time }
     }
     
     var body: some View {
@@ -209,33 +219,19 @@ struct CalendarView: View {
                 Color.customDarkNavy.ignoresSafeArea()
                 
                 VStack {
-                    Button(action: {
+                    DatePicker(
+                        "Select Date",
+                        selection: $selectedDate,
+                        displayedComponents: [.date]
+                    )
+                    .datePickerStyle(.graphical)
+                    .tint(Color.customAccent)
+                    .padding()
+                    .background(Color.customNavy)
+                    .cornerRadius(12)
+                    .padding()
+                    .onChange(of: selectedDate) { _ in
                         showDayView = true
-                    }) {
-                        DatePicker(
-                            "Select Date",
-                            selection: $selectedDate,
-                            displayedComponents: [.date]
-                        )
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .background(Color.customNavy)
-                        .cornerRadius(12)
-                        .padding()
-                        .onChange(of: selectedDate) { _ in
-                            showDayView = true
-                        }
-                        .overlay(
-                            // Добавляем точки для дней с событиями
-                            ForEach(selectedEvents) { event in
-                                if Calendar.current.isDate(event.date, equalTo: selectedDate, toGranularity: .day) {
-                                    Circle()
-                                        .fill(Color.customAccent)
-                                        .frame(width: 6, height: 6)
-                                        .offset(y: 20) // Регулируйте это значение для правильного позиционирования
-                                }
-                            }
-                        )
                     }
                     
                     // Список событий под календарем
@@ -248,20 +244,20 @@ struct CalendarView: View {
                             
                             List {
                                 ForEach(eventsForSelectedDate) { event in
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text(event.title)
-                                                .font(.system(size: 17, weight: .medium))
-                                                .foregroundColor(.white)
-                                            Text(event.time, style: .time)
-                                                .font(.subheadline)
-                                                .foregroundColor(.customAccent)
-                                        }
-                                        Spacer()
-                                        
-                                        Button(action: {
-                                            showDayView = true
-                                        }) {
+                                    Button(action: {
+                                        showDayView = true
+                                    }) {
+                                        HStack {
+                                            VStack(alignment: .leading) {
+                                                Text(event.title)
+                                                    .font(.system(size: 17, weight: .medium))
+                                                    .foregroundColor(.white)
+                                                Text(event.time, style: .time)
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.customAccent)
+                                            }
+                                            Spacer()
+                                            
                                             Image(systemName: "chevron.right")
                                                 .foregroundColor(.customAccent)
                                         }
@@ -319,7 +315,8 @@ struct CalendarView: View {
                 NavigationLink(isActive: $showDayView) {
                     DayView(
                         date: selectedDate,
-                        selectedEvents: $selectedEvents
+                        selectedEvents: $selectedEvents,
+                        saveEvents: saveEvents
                     )
                 } label: {
                     EmptyView()
