@@ -28,6 +28,12 @@ struct SecondView: View {
     
     private func restoreProject(_ project: SavedProject) {
         if let uiImage = UIImage(data: project.imageData) {
+            // Сначала очищаем предыдущее состояние
+            selectedImage = nil
+            goals.removeAll()
+            cells.removeAll()
+            
+            // Затем восстанавливаем проект
             selectedImage = Image(uiImage: uiImage)
             goals = project.goals
             cells = project.cells

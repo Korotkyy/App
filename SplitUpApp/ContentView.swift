@@ -838,7 +838,13 @@ struct ContentView: View {
             Task {
                 if let data = try? await newValue?.loadTransferable(type: Data.self),
                    let uiImage = UIImage(data: data) {
-                    originalUIImage = uiImage  // Сохраняем оригинальный UIImage
+                    // Очищаем предыдущее состояние
+                    goals.removeAll()
+                    cells.removeAll()
+                    currentProjectId = nil  // Важно!
+                    
+                    // Устанавливаем новое изображение
+                    originalUIImage = uiImage
                     selectedImage = Image(uiImage: uiImage)
                 }
             }
