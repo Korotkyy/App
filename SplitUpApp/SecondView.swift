@@ -14,6 +14,15 @@ struct SecondView: View {
     private func saveProjects() {
         if let encoded = try? JSONEncoder().encode(savedProjects) {
             UserDefaults.standard.set(encoded, forKey: "savedProjects")
+            UserDefaults.standard.synchronize() // Принудительно сохраняем
+        }
+    }
+    
+    // И добавим функцию загрузки проектов
+    private func loadProjects() {
+        if let data = UserDefaults.standard.data(forKey: "savedProjects"),
+           let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
+            savedProjects = decoded
         }
     }
     
@@ -130,6 +139,9 @@ struct SecondView: View {
                         .foregroundColor(.white)
                 }
             }
+        }
+        .onAppear {
+            loadProjects() // Загружаем все проекты при открытии экрана
         }
     }
 }

@@ -174,18 +174,15 @@ struct ContentView: View {
     }
     
     private func saveToStorage() {
-        print("Saving to storage...")
         if let encoded = try? JSONEncoder().encode(savedProjects) {
-            print("Projects encoded successfully")
-            savedProjectsData = encoded
-            print("Data saved to UserDefaults")
-        } else {
-            print("Failed to encode projects")
+            UserDefaults.standard.set(encoded, forKey: "savedProjects")
+            UserDefaults.standard.synchronize() // Принудительно сохраняем
         }
     }
     
     private func loadFromStorage() {
-        if let decoded = try? JSONDecoder().decode([SavedProject].self, from: savedProjectsData) {
+        if let data = UserDefaults.standard.data(forKey: "savedProjects"),
+           let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
             savedProjects = decoded
         }
     }
