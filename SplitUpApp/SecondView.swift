@@ -8,6 +8,7 @@ struct SecondView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var cells: [Cell]
     @Binding var showGrid: Bool
+    @Binding var currentProjectId: UUID?
     
     // Добавляем функцию для сохранения
     private func saveProjects() {
@@ -22,6 +23,7 @@ struct SecondView: View {
             goals = project.goals
             cells = project.cells
             showGrid = project.showGrid
+            currentProjectId = project.id
             isPresented = false
         }
     }
@@ -142,7 +144,8 @@ struct SecondView_Previews: PreviewProvider {
             goals: .constant([]),
             isPresented: .constant(true),
             cells: .constant([]),
-            showGrid: .constant(true)
+            showGrid: .constant(true),
+            currentProjectId: .constant(nil)
         )
         .previewDevice("iPhone 14")  // Указываем конкретное устройство
     }

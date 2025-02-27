@@ -360,6 +360,7 @@ struct CalendarView: View {
     @State private var selectedEvents: [CalendarEvent] = []
     @AppStorage("calendarEvents") private var eventsData: Data = Data()
     @State private var showDayView = false
+    @State private var currentProjectId: UUID?
     
     @Binding var savedProjects: [SavedProject]
     @Binding var selectedImage: Image?
@@ -489,7 +490,8 @@ struct CalendarView: View {
                 goals: $goals,
                 isPresented: $showingSecondView,
                 cells: $cells,
-                showGrid: $showGrid
+                showGrid: $showGrid,
+                currentProjectId: $currentProjectId
             )
         }
         .onChange(of: selectedEvents) { _ in

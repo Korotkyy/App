@@ -96,6 +96,9 @@ struct ContentView: View {
     @State private var showGoalsList = false
     @State private var showEditForm = false
     @State private var showingCalendar = false
+    @State private var lastCellsState: [Cell]?
+    @State private var lastGoalsState: [Goal]?
+    @State private var currentProjectId: UUID?
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + $1.scaledSquares }
@@ -215,15 +218,31 @@ struct ContentView: View {
         if let image = selectedImage,
            let imageData = convertImageToData(image) {
             let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
-            let newProject = SavedProject(
-                id: UUID(),
-                imageData: imageData,
-                goals: goals,
-                projectName: projectTitle,
-                cells: cells,
-                showGrid: showGrid
-            )
-            savedProjects.append(newProject)
+            
+            if let currentId = currentProjectId,
+               let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
+                // Обновляем существующий проект
+                let updatedProject = SavedProject(
+                    id: currentId,  // Сохраняем тот же ID
+                    imageData: imageData,
+                    goals: goals,
+                    projectName: projectTitle,
+                    cells: cells,
+                    showGrid: showGrid
+                )
+                savedProjects[existingIndex] = updatedProject
+            } else {
+                // Создаем новый проект
+                let newProject = SavedProject(
+                    id: UUID(),
+                    imageData: imageData,
+                    goals: goals,
+                    projectName: projectTitle,
+                    cells: cells,
+                    showGrid: showGrid
+                )
+                savedProjects.append(newProject)
+            }
             saveToStorage()
             showingSecondView = true
         }
@@ -635,6 +654,10 @@ struct ContentView: View {
                                 Button("Complete") {
                                     if let partialAmount = Int(partialCompletion),
                                        let selectedGoal = goals[safe: selectedGoalIndex] {
+                                        // Сохраняем текущее состояние перед изменением
+                                        lastCellsState = cells
+                                        lastGoalsState = goals
+                                        
                                         updateGoalProgress(goalId: selectedGoal.id, amount: partialAmount)
                                         partialCompletion = ""
                                     }
@@ -644,6 +667,26 @@ struct ContentView: View {
                                 .padding(.vertical, 8)
                                 .background(Color.customBeige)
                                 .cornerRadius(12)
+                                
+                                // Добавляем кнопку Undo
+                                if lastCellsState != nil {
+                                    Button(action: {
+                                        // Восстанавливаем предыдущее состояние
+                                        if let lastCells = lastCellsState,
+                                           let lastGoals = lastGoalsState {
+                                            withAnimation {
+                                                cells = lastCells
+                                                goals = lastGoals
+                                                lastCellsState = nil
+                                                lastGoalsState = nil
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                                            .foregroundColor(.customAccent)
+                                            .font(.system(size: 24))
+                                    }
+                                }
                             }
                             .padding(.horizontal)
                         }
@@ -693,7 +736,8 @@ struct ContentView: View {
                 goals: $goals,
                 isPresented: $showingSecondView,
                 cells: $cells,
-                showGrid: $showGrid
+                showGrid: $showGrid,
+                currentProjectId: $currentProjectId
             )
         }
         .sheet(isPresented: $showGoalsList) {
@@ -854,7 +898,8 @@ struct ContentView: View {
         goals = project.goals
         cells = project.cells
         showGrid = project.showGrid
-        coloredCount = project.cells.filter { $0.isColored }.count
+        projectName = project.projectName
+        currentProjectId = project.id  // Сохраняем ID текущего проекта
     }
     
     private func openPrivacyPolicy() {
