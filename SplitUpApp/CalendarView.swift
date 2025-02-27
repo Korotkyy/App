@@ -491,7 +491,9 @@ struct CalendarView: View {
                 isPresented: $showingSecondView,
                 cells: $cells,
                 showGrid: $showGrid,
-                currentProjectId: $currentProjectId
+                currentProjectId: $currentProjectId,
+                projectName: .constant(""),
+                originalUIImage: .constant(nil)
             )
         }
         .onChange(of: selectedEvents) { _ in

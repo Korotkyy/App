@@ -9,6 +9,8 @@ struct SecondView: View {
     @Binding var cells: [Cell]
     @Binding var showGrid: Bool
     @Binding var currentProjectId: UUID?
+    @Binding var projectName: String
+    @Binding var originalUIImage: UIImage?
     
     // Добавляем функцию для сохранения
     private func saveProjects() {
@@ -32,13 +34,21 @@ struct SecondView: View {
             selectedImage = nil
             goals.removeAll()
             cells.removeAll()
+            projectName = ""  // Важно очистить имя проекта!
             
             // Затем восстанавливаем проект
             selectedImage = Image(uiImage: uiImage)
             goals = project.goals
             cells = project.cells
             showGrid = project.showGrid
-            currentProjectId = project.id
+            projectName = project.projectName  // Восстанавливаем имя проекта
+            currentProjectId = project.id      // Устанавливаем правильный ID
+            
+            // Сохраняем оригинальное изображение
+            if let originalImage = UIImage(data: project.imageData) {
+                originalUIImage = originalImage
+            }
+            
             isPresented = false
         }
     }
@@ -163,7 +173,9 @@ struct SecondView_Previews: PreviewProvider {
             isPresented: .constant(true),
             cells: .constant([]),
             showGrid: .constant(true),
-            currentProjectId: .constant(nil)
+            currentProjectId: .constant(nil),
+            projectName: .constant(""),
+            originalUIImage: .constant(nil)
         )
         .previewDevice("iPhone 14")  // Указываем конкретное устройство
     }

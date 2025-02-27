@@ -214,22 +214,23 @@ struct ContentView: View {
         
         if let currentId = currentProjectId,
            let existingIndex = existingProjects.firstIndex(where: { $0.id == currentId }) {
-            // Обновляем существующий проект
+            // Обновляем существующий проект, сохраняя его имя
             let updatedProject = SavedProject(
                 id: currentId,
                 imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
-                projectName: projectTitle,
+                projectName: projectTitle,  // Используем текущее имя проекта
                 cells: cells,
                 showGrid: showGrid
             )
             existingProjects[existingIndex] = updatedProject
-            print("Обновили существующий проект: \(currentId)")
+            print("Обновили существующий проект: \(currentId) с именем: \(projectTitle)")
         } else {
-            // Создаем новый проект с уникальным ID
+            // Создаем новый проект
+            let newId = UUID()
             let newProject = SavedProject(
-                id: UUID(),
+                id: newId,
                 imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
@@ -238,15 +239,15 @@ struct ContentView: View {
                 showGrid: showGrid
             )
             existingProjects.append(newProject)
-            currentProjectId = newProject.id
-            print("Создали новый проект: \(newProject.id)")
+            currentProjectId = newId
+            print("Создали новый проект: \(newId) с именем: \(projectTitle)")
         }
         
         // Сохраняем обновленный массив проектов
         if let encoded = try? JSONEncoder().encode(existingProjects) {
             UserDefaults.standard.set(encoded, forKey: "savedProjects")
             UserDefaults.standard.synchronize()
-            savedProjects = existingProjects  // Обновляем локальный массив
+            savedProjects = existingProjects
         }
         
         showingSecondView = true
@@ -743,7 +744,9 @@ struct ContentView: View {
                 isPresented: $showingSecondView,
                 cells: $cells,
                 showGrid: $showGrid,
-                currentProjectId: $currentProjectId
+                currentProjectId: $currentProjectId,
+                projectName: $projectName,
+                originalUIImage: $originalUIImage
             )
         }
         .sheet(isPresented: $showGoalsList) {
