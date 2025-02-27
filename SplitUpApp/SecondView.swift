@@ -49,7 +49,7 @@ struct SecondView: View {
                         ForEach(savedProjects) { project in
                             ZStack(alignment: .topTrailing) {
                                 VStack {
-                                    getImage(from: project.imageData)
+                                    getImage(from: project.thumbnailData)
                                         .resizable()
                                         .scaledToFill()
                                         .frame(width: UIScreen.main.bounds.width * 0.4,

@@ -65,7 +65,8 @@ struct Cell: Codable {
 
 struct SavedProject: Identifiable, Codable {
     let id: UUID
-    let imageData: Data
+    let imageData: Data        // Оригинальное изображение
+    let thumbnailData: Data    // Маленькое изображение для превью
     let goals: [Goal]
     let projectName: String
     let cells: [Cell]
@@ -99,6 +100,8 @@ struct ContentView: View {
     @State private var lastCellsState: [Cell]?
     @State private var lastGoalsState: [Goal]?
     @State private var currentProjectId: UUID?
+    @State private var originalImageData: Data?
+    @State private var originalUIImage: UIImage?
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + $1.scaledSquares }
@@ -190,79 +193,54 @@ struct ContentView: View {
     private func convertImageToData(_ image: Image?) -> Data? {
         guard let image = image else { return nil }
         
-        // Создаем UIView с изображением в полном размере
-        let controller = UIHostingController(rootView:
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fit) // Используем .fit вместо .fill
-                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
-        )
-        
-        // Устанавливаем размер равный размеру экрана
-        let size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
-        controller.view.frame = CGRect(origin: .zero, size: size)
-        
-        // Создаем изображение с правильным масштабом
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1.0 // Устанавливаем масштаб 1.0
-        format.opaque = false
-        
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        let uiImage = renderer.image { context in
-            controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+        // Получаем UIImage напрямую из PhotosPicker
+        if let uiImage = image.asUIImage() {
+            // Сохраняем в максимальном качестве
+            return uiImage.jpegData(compressionQuality: 1.0)
         }
         
-        return uiImage.pngData()
+        return nil
     }
     
     private func saveProject() {
-        print("Starting save project...")
+        guard let uiImage = originalUIImage else { return }
         
-        if let image = selectedImage {
-            print("Image exists")
-            if let imageData = convertImageToData(image) {
-                print("Image converted to data, size: \(imageData.count) bytes")
-                
-                let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
-                print("Project title: \(projectTitle)")
-                
-                if let currentId = currentProjectId,
-                   let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
-                    print("Updating existing project at index: \(existingIndex)")
-                    
-                    let updatedProject = SavedProject(
-                        id: currentId,
-                        imageData: imageData,
-                        goals: goals,
-                        projectName: projectTitle,
-                        cells: cells,
-                        showGrid: showGrid
-                    )
-                    savedProjects[existingIndex] = updatedProject
-                    print("Project updated")
-                } else {
-                    print("Creating new project")
-                    let newProject = SavedProject(
-                        id: UUID(),
-                        imageData: imageData,
-                        goals: goals,
-                        projectName: projectTitle,
-                        cells: cells,
-                        showGrid: showGrid
-                    )
-                    savedProjects.append(newProject)
-                    print("New project added")
-                }
-                
-                saveToStorage()
-                print("Projects saved to storage, total projects: \(savedProjects.count)")
-                showingSecondView = true
-            } else {
-                print("Failed to convert image to data")
-            }
+        let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
+        
+        // Сохраняем оригинальное изображение в максимальном качестве
+        let imageData = uiImage.jpegData(compressionQuality: 1.0)!
+        
+        if let currentId = currentProjectId,
+           let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
+            // Обновляем существующий проект
+            let updatedProject = SavedProject(
+                id: currentId,
+                imageData: imageData,
+                thumbnailData: imageData, // Временно используем то же изображение
+                goals: goals,
+                projectName: projectTitle,
+                cells: cells,
+                showGrid: showGrid
+            )
+            savedProjects[existingIndex] = updatedProject
+            print("Обновили существующий проект: \(currentId)")
         } else {
-            print("No image selected")
+            // Создаем новый проект
+            let newProject = SavedProject(
+                id: UUID(),
+                imageData: imageData,
+                thumbnailData: imageData,
+                goals: goals,
+                projectName: projectTitle,
+                cells: cells,
+                showGrid: showGrid
+            )
+            savedProjects.append(newProject)
+            currentProjectId = newProject.id
+            print("Создали новый проект: \(newProject.id)")
         }
+        saveToStorage()
+        showingSecondView = true
     }
     
     private func getImage(from data: Data) -> Image {
@@ -851,6 +829,7 @@ struct ContentView: View {
             Task {
                 if let data = try? await newValue?.loadTransferable(type: Data.self),
                    let uiImage = UIImage(data: data) {
+                    originalUIImage = uiImage  // Сохраняем оригинальный UIImage
                     selectedImage = Image(uiImage: uiImage)
                 }
             }
@@ -913,12 +892,15 @@ struct ContentView: View {
     
     // Добавим новую функцию для восстановления состояния сетки
     private func restoreGridState(from project: SavedProject) {
-        selectedImage = Image(uiImage: UIImage(data: project.imageData)!)
-        goals = project.goals
-        cells = project.cells
-        showGrid = project.showGrid
-        projectName = project.projectName
-        currentProjectId = project.id  // Сохраняем ID текущего проекта
+        if let uiImage = UIImage(data: project.imageData) {
+            originalUIImage = uiImage  // Сохраняем оригинальный UIImage
+            selectedImage = Image(uiImage: uiImage)
+            goals = project.goals
+            cells = project.cells
+            showGrid = project.showGrid
+            projectName = project.projectName
+            currentProjectId = project.id
+        }
     }
     
     private func openPrivacyPolicy() {
@@ -972,6 +954,16 @@ struct ContentView: View {
             }
         }
     }
+    
+    // Добавляем функцию создания миниатюры
+    private func createThumbnail(from image: UIImage) -> Data? {
+        let size = CGSize(width: 300, height: 300)
+        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        image.draw(in: CGRect(origin: .zero, size: size))
+        let thumbnail = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return thumbnail?.jpegData(compressionQuality: 0.7)
+    }
 }
 
 struct ContentView_Previews: PreviewProvider {
@@ -985,6 +977,28 @@ struct ContentView_Previews: PreviewProvider {
 extension Collection {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+// Добавим расширение для конвертации Image в UIImage
+extension Image {
+    func asUIImage() -> UIImage? {
+        let controller = UIHostingController(rootView:
+            self
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+        )
+        
+        let view = controller.view
+        let targetSize = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+        view?.bounds = CGRect(origin: .zero, size: targetSize)
+        view?.backgroundColor = .clear
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            view?.drawHierarchy(in: view?.bounds ?? .zero, afterScreenUpdates: true)
+        }
     }
 }
 
