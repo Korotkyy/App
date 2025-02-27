@@ -882,20 +882,16 @@ struct ContentView: View {
             goals[goalIndex].remainingNumber = String(newRemaining)
             goals[goalIndex].isCompleted = newRemaining == 0
             
-            // Рассчитываем процент выполнения
-            let totalAmount = Double(Int(goals[goalIndex].totalNumber) ?? 0)
-            let completedAmount = totalAmount - Double(newRemaining)
-            let completionPercentage = completedAmount / totalAmount
-            
-            // Рассчитываем количество клеток для закрашивания
-            let cellsToColor = Int(Double(goals[goalIndex].scaledSquares) * completionPercentage)
+            // Закрашиваем клетки в соответствии с введенным числом
+            let scale = goals[goalIndex].scale
+            let cellsToColor = Int(ceil(Double(amount) / Double(scale)))
             
             // Получаем только незакрашенные клетки
             var availablePositions = cells.enumerated()
                 .filter { !$0.element.isColored }
                 .map { $0.offset }
             
-            // Случайным образом закрашиваем нужное количество клеток
+            // Закрашиваем точное количество клеток
             for _ in 0..<cellsToColor {
                 guard let randomIndex = availablePositions.indices.randomElement() else { break }
                 let position = availablePositions.remove(at: randomIndex)
@@ -916,12 +912,9 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        Group {
-            ContentView()
-                .previewDisplayName("Default")
-                .previewLayout(.device)
-                .preferredColorScheme(.light)
-        }
+        ContentView()
+            .previewDevice("iPhone 14")  // Указываем конкретное устройство
+            .previewDisplayName("iPhone 14")  // Добавляем название в превью
     }
 }
 
