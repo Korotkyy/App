@@ -171,8 +171,13 @@ struct ContentView: View {
     }
     
     private func saveToStorage() {
+        print("Saving to storage...")
         if let encoded = try? JSONEncoder().encode(savedProjects) {
+            print("Projects encoded successfully")
             savedProjectsData = encoded
+            print("Data saved to UserDefaults")
+        } else {
+            print("Failed to encode projects")
         }
     }
     
@@ -184,67 +189,76 @@ struct ContentView: View {
     
     private func convertImageToData(_ image: Image?) -> Data? {
         guard let image = image else { return nil }
-        // Создаем UIImage из Image
         let controller = UIHostingController(rootView:
             image
                 .resizable()
-                .scaledToFill()
-                .frame(width: 300, height: 300)
+                .aspectRatio(contentMode: .fill)
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width) // Используем полную ширину экрана
                 .clipped()
-                .background(Color.clear)
         )
-        controller.view.backgroundColor = .clear
         
-        // Устанавливаем размер
-        let size = CGSize(width: 300, height: 300)
+        let size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
         controller.view.bounds = CGRect(origin: .zero, size: size)
         
-        // Создаем контекст для рендеринга
         let format = UIGraphicsImageRendererFormat()
+        format.scale = UIScreen.main.scale // Сохраняем масштаб экрана
         format.opaque = false
         
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        
-        // Рендерим изображение
         let uiImage = renderer.image { _ in
             controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
         }
         
-        // Конвертируем в PNG для сохранения прозрачности
         return uiImage.pngData()
     }
     
     private func saveProject() {
-        if let image = selectedImage,
-           let imageData = convertImageToData(image) {
-            let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
-            
-            if let currentId = currentProjectId,
-               let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
-                // Обновляем существующий проект
-                let updatedProject = SavedProject(
-                    id: currentId,  // Сохраняем тот же ID
-                    imageData: imageData,
-                    goals: goals,
-                    projectName: projectTitle,
-                    cells: cells,
-                    showGrid: showGrid
-                )
-                savedProjects[existingIndex] = updatedProject
+        print("Starting save project...")
+        
+        if let image = selectedImage {
+            print("Image exists")
+            if let imageData = convertImageToData(image) {
+                print("Image converted to data, size: \(imageData.count) bytes")
+                
+                let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
+                print("Project title: \(projectTitle)")
+                
+                if let currentId = currentProjectId,
+                   let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
+                    print("Updating existing project at index: \(existingIndex)")
+                    
+                    let updatedProject = SavedProject(
+                        id: currentId,
+                        imageData: imageData,
+                        goals: goals,
+                        projectName: projectTitle,
+                        cells: cells,
+                        showGrid: showGrid
+                    )
+                    savedProjects[existingIndex] = updatedProject
+                    print("Project updated")
+                } else {
+                    print("Creating new project")
+                    let newProject = SavedProject(
+                        id: UUID(),
+                        imageData: imageData,
+                        goals: goals,
+                        projectName: projectTitle,
+                        cells: cells,
+                        showGrid: showGrid
+                    )
+                    savedProjects.append(newProject)
+                    print("New project added")
+                }
+                
+                saveToStorage()
+                print("Projects saved to storage, total projects: \(savedProjects.count)")
+                showingSecondView = true
             } else {
-                // Создаем новый проект
-                let newProject = SavedProject(
-                    id: UUID(),
-                    imageData: imageData,
-                    goals: goals,
-                    projectName: projectTitle,
-                    cells: cells,
-                    showGrid: showGrid
-                )
-                savedProjects.append(newProject)
+                print("Failed to convert image to data")
             }
-            saveToStorage()
-            showingSecondView = true
+        } else {
+            print("No image selected")
         }
     }
     
@@ -377,8 +391,8 @@ struct ContentView: View {
                                     ZStack {
                                         selectedImage!
                                             .resizable()
-                                            .scaledToFill()
-                                            .frame(width: geometry.size.width, height: geometry.size.height)
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
                                             .clipped()
                                             .grayscale(1.0)
                                         
@@ -386,15 +400,15 @@ struct ContentView: View {
                                         let width = geometry.size.width / CGFloat(dimensions.columns)
                                         let height = geometry.size.height / CGFloat(dimensions.rows)
                                         
-                                        // Цветные клетки поверх черно-белого изображения
+                                        // Цветные клетки
                                         ForEach(0..<cells.count, id: \.self) { index in
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
                                             if cells[index].isColored {
                                                 selectedImage!
                                                     .resizable()
-                                                    .scaledToFill()
-                                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                                    .aspectRatio(contentMode: .fill)
+                                                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
                                                     .clipped()
                                                     .mask(
                                                         Rectangle()
@@ -407,7 +421,7 @@ struct ContentView: View {
                                             }
                                         }
                                         
-                                        // Белая сетка только для незакрашенных клеток
+                                        // Сетка
                                         ForEach(0..<cells.count, id: \.self) { index in
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
@@ -425,8 +439,7 @@ struct ContentView: View {
                                 }
                             }
                             .frame(width: UIScreen.main.bounds.width * 0.95)
-                            .frame(height: UIScreen.main.bounds.height * 0.4)
-                            .padding(.horizontal)
+                            .frame(height: UIScreen.main.bounds.width * 0.95)
                         } else {
                             selectedImage!
                                 .resizable()
