@@ -189,23 +189,26 @@ struct ContentView: View {
     
     private func convertImageToData(_ image: Image?) -> Data? {
         guard let image = image else { return nil }
+        
+        // Создаем UIView с изображением в полном размере
         let controller = UIHostingController(rootView:
             image
                 .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width) // Используем полную ширину экрана
-                .clipped()
+                .aspectRatio(contentMode: .fit) // Используем .fit вместо .fill
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
         )
         
+        // Устанавливаем размер равный размеру экрана
         let size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
-        controller.view.bounds = CGRect(origin: .zero, size: size)
+        controller.view.frame = CGRect(origin: .zero, size: size)
         
+        // Создаем изображение с правильным масштабом
         let format = UIGraphicsImageRendererFormat()
-        format.scale = UIScreen.main.scale // Сохраняем масштаб экрана
+        format.scale = 1.0 // Устанавливаем масштаб 1.0
         format.opaque = false
         
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        let uiImage = renderer.image { _ in
+        let uiImage = renderer.image { context in
             controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
         }
         
@@ -388,17 +391,20 @@ struct ContentView: View {
                         if showGrid {
                             ZStack {
                                 GeometryReader { geometry in
+                                    let imageSize = geometry.size.width // Используем квадратный размер
+                                    
                                     ZStack {
+                                        // Основное изображение
                                         selectedImage!
                                             .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                                            .aspectRatio(contentMode: .fill) // Возвращаем .fill
+                                            .frame(width: imageSize, height: imageSize)
                                             .clipped()
                                             .grayscale(1.0)
                                         
                                         let dimensions = calculateGridDimensions()
-                                        let width = geometry.size.width / CGFloat(dimensions.columns)
-                                        let height = geometry.size.height / CGFloat(dimensions.rows)
+                                        let cellWidth = imageSize / CGFloat(dimensions.columns)
+                                        let cellHeight = imageSize / CGFloat(dimensions.rows)
                                         
                                         // Цветные клетки
                                         ForEach(0..<cells.count, id: \.self) { index in
@@ -408,14 +414,14 @@ struct ContentView: View {
                                                 selectedImage!
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fill)
-                                                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                                                    .frame(width: imageSize, height: imageSize)
                                                     .clipped()
                                                     .mask(
                                                         Rectangle()
-                                                            .frame(width: width, height: height)
+                                                            .frame(width: cellWidth, height: cellHeight)
                                                             .position(
-                                                                x: width * CGFloat(col) + width/2,
-                                                                y: height * CGFloat(row) + height/2
+                                                                x: cellWidth * CGFloat(col) + cellWidth/2,
+                                                                y: cellHeight * CGFloat(row) + cellHeight/2
                                                             )
                                                     )
                                             }
@@ -428,10 +434,10 @@ struct ContentView: View {
                                             if !cells[index].isColored {
                                                 Rectangle()
                                                     .stroke(Color.white, lineWidth: 1)
-                                                    .frame(width: width, height: height)
+                                                    .frame(width: cellWidth, height: cellHeight)
                                                     .position(
-                                                        x: width * CGFloat(col) + width/2,
-                                                        y: height * CGFloat(row) + height/2
+                                                        x: cellWidth * CGFloat(col) + cellWidth/2,
+                                                        y: cellHeight * CGFloat(row) + cellHeight/2
                                                     )
                                             }
                                         }
@@ -439,7 +445,7 @@ struct ContentView: View {
                                 }
                             }
                             .frame(width: UIScreen.main.bounds.width * 0.95)
-                            .frame(height: UIScreen.main.bounds.width * 0.95)
+                            .frame(height: UIScreen.main.bounds.width * 0.95) // Делаем контейнер квадратным
                         } else {
                             selectedImage!
                                 .resizable()
