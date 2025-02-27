@@ -203,40 +203,52 @@ struct ContentView: View {
         guard let uiImage = originalUIImage else { return }
         
         let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
-        
-        // Сохраняем оригинальное изображение в максимальном качестве
         let imageData = uiImage.jpegData(compressionQuality: 1.0)!
         
+        // Загружаем существующие проекты
+        var existingProjects: [SavedProject] = []
+        if let data = UserDefaults.standard.data(forKey: "savedProjects"),
+           let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
+            existingProjects = decoded
+        }
+        
         if let currentId = currentProjectId,
-           let existingIndex = savedProjects.firstIndex(where: { $0.id == currentId }) {
+           let existingIndex = existingProjects.firstIndex(where: { $0.id == currentId }) {
             // Обновляем существующий проект
             let updatedProject = SavedProject(
                 id: currentId,
                 imageData: imageData,
-                thumbnailData: imageData, // Временно используем то же изображение
+                thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
                 projectName: projectTitle,
                 cells: cells,
                 showGrid: showGrid
             )
-            savedProjects[existingIndex] = updatedProject
+            existingProjects[existingIndex] = updatedProject
             print("Обновили существующий проект: \(currentId)")
         } else {
-            // Создаем новый проект
+            // Создаем новый проект с уникальным ID
             let newProject = SavedProject(
                 id: UUID(),
                 imageData: imageData,
-                thumbnailData: imageData,
+                thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
                 projectName: projectTitle,
                 cells: cells,
                 showGrid: showGrid
             )
-            savedProjects.append(newProject)
+            existingProjects.append(newProject)
             currentProjectId = newProject.id
             print("Создали новый проект: \(newProject.id)")
         }
-        saveToStorage()
+        
+        // Сохраняем обновленный массив проектов
+        if let encoded = try? JSONEncoder().encode(existingProjects) {
+            UserDefaults.standard.set(encoded, forKey: "savedProjects")
+            UserDefaults.standard.synchronize()
+            savedProjects = existingProjects  // Обновляем локальный массив
+        }
+        
         showingSecondView = true
     }
     
