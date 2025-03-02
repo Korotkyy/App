@@ -16,14 +16,25 @@ struct CalendarEvent: Identifiable, Codable, Equatable {
 struct DayView: View {
     let date: Date
     @Binding var selectedEvents: [CalendarEvent]
+    @Binding var savedProjects: [SavedProject]
+    @Binding var selectedImage: Image?
+    @Binding var goals: [Goal]
+    @Binding var cells: [Cell]
+    @Binding var showGrid: Bool
+    @Binding var currentProjectId: UUID?
+    @Binding var projectName: String
+    @Binding var originalUIImage: UIImage?
+    @Binding var selectedDeadline: Date?
     let saveEvents: () -> Void
     let deleteEvent: (CalendarEvent) -> Void
+    let onProjectSelected: (SavedProject) -> Void
     @State private var showingEventSheet = false
     @State private var newEventTitle = ""
     @State private var newEventNotes = ""
     @State private var newEventTime = Date()
     @State private var isEditing = false
     @State private var editingEvent: CalendarEvent?
+    @State private var showingSecondView = false
     @Environment(\.dismiss) var dismiss
     
     var eventsForDay: [CalendarEvent] {
@@ -38,6 +49,16 @@ struct DayView: View {
         .sorted { $0.time < $1.time }
     }
     
+    var projectsWithDeadline: [SavedProject] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        return savedProjects.filter { project in
+            guard let deadline = project.deadline else { return false }
+            return calendar.startOfDay(for: deadline) == startOfDay
+        }
+    }
+    
     private func deleteEvents(at offsets: IndexSet) {
         for index in offsets {
             let event = eventsForDay[index]
@@ -45,11 +66,48 @@ struct DayView: View {
         }
     }
     
+    private func openProject(_ project: SavedProject) {
+        onProjectSelected(project)
+    }
+    
     var body: some View {
         ZStack {
             Color.customDarkNavy.ignoresSafeArea()
             
             VStack {
+                // Секция проектов с дедлайном
+                if !projectsWithDeadline.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 15) {
+                            ForEach(projectsWithDeadline) { project in
+                                Button(action: {
+                                    openProject(project)
+                                }) {
+                                    VStack {
+                                        if let imageData = project.thumbnailData,
+                                           let uiImage = UIImage(data: imageData) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 60, height: 60)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        }
+                                        Text(project.projectName)
+                                            .font(.caption)
+                                            .foregroundColor(.white)
+                                            .lineLimit(1)
+                                    }
+                                    .frame(width: 70)
+                                }
+                            }
+                        }
+                        .padding()
+                    }
+                    .background(Color.customNavy)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+                
                 List {
                     ForEach(eventsForDay) { event in
                         EventRow(
@@ -69,7 +127,6 @@ struct DayView: View {
                 }
                 .listStyle(.plain)
                 
-                // Добавляем кнопку внизу экрана
                 Button {
                     editingEvent = nil
                     newEventTitle = ""
@@ -208,21 +265,23 @@ struct CustomCalendarView: View {
     @Binding var selectedDate: Date
     let hasEvents: (Date) -> Bool
     let onDateSelected: () -> Void
+    @Binding var savedProjects: [SavedProject]
     
     private var calendar: Calendar {
         var cal = Calendar.current
-        cal.firstWeekday = 1  // 1 = Воскресенье, 2 = Понедельник
-        cal.locale = Locale(identifier: "en_US")  // Используем US локаль для консистентности
+        cal.firstWeekday = 1
+        cal.locale = Locale(identifier: "en_US")
         return cal
     }
     
-    private let daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]  // Убедимся, что порядок соответствует календарю
+    private let daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
     @State private var currentMonth: Date
     
-    init(selectedDate: Binding<Date>, hasEvents: @escaping (Date) -> Bool, onDateSelected: @escaping () -> Void) {
+    init(selectedDate: Binding<Date>, hasEvents: @escaping (Date) -> Bool, onDateSelected: @escaping () -> Void, savedProjects: Binding<[SavedProject]>) {
         self._selectedDate = selectedDate
         self.hasEvents = hasEvents
         self.onDateSelected = onDateSelected
+        self._savedProjects = savedProjects
         self._currentMonth = State(initialValue: selectedDate.wrappedValue)
     }
     
@@ -268,7 +327,8 @@ struct CustomCalendarView: View {
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
-                            hasEvent: hasEvents(date)
+                            hasEvent: hasEvents(date),
+                            savedProjects: $savedProjects
                         )
                         .onTapGesture {
                             selectedDate = date
@@ -333,6 +393,16 @@ struct DayCell: View {
     let isSelected: Bool
     let isCurrentMonth: Bool
     let hasEvent: Bool
+    @Binding var savedProjects: [SavedProject]
+    
+    private func isDeadlineDate(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let dateToCheck = calendar.startOfDay(for: date)
+        return savedProjects.contains { project in
+            guard let deadline = project.deadline else { return false }
+            return calendar.startOfDay(for: deadline) == dateToCheck
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -346,7 +416,7 @@ struct DayCell: View {
                 .font(.system(size: 17))
                 .foregroundColor(
                     isSelected ? .black :
-                        isCurrentMonth ? (hasEvent ? Color.customAccent : .white) : .gray
+                        isCurrentMonth ? (isDeadlineDate(date) ? .green : (hasEvent ? Color.customAccent : .white)) : .gray
                 )
         }
         .frame(width: 40, height: 40)
@@ -361,6 +431,7 @@ struct CalendarView: View {
     @AppStorage("calendarEvents") private var eventsData: Data = Data()
     @State private var showDayView = false
     @State private var currentProjectId: UUID?
+    @State private var shouldOpenProject = false
     
     @Binding var savedProjects: [SavedProject]
     @Binding var selectedImage: Image?
@@ -380,25 +451,20 @@ struct CalendarView: View {
         }
     }
     
-    var eventsForSelectedDate: [CalendarEvent] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        return selectedEvents.filter { event in
-            let eventDate = calendar.startOfDay(for: event.date)
-            return eventDate == startOfDay
-        }
-        .sorted { $0.time < $1.time }
-    }
-    
     private func deleteEvent(_ event: CalendarEvent) {
         withAnimation {
             selectedEvents.removeAll { $0.id == event.id }
             saveEvents()
             
-            // Если после удаления в текущем дне нет событий, закрываем DayView
-            if eventsForSelectedDate.isEmpty {
+            // Проверяем, остались ли события на текущий день
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: selectedDate)
+            let remainingEvents = selectedEvents.filter { event in
+                calendar.startOfDay(for: event.date) == startOfDay
+            }
+            
+            // Если событий не осталось, закрываем DayView
+            if remainingEvents.isEmpty {
                 showDayView = false
             }
         }
@@ -408,11 +474,20 @@ struct CalendarView: View {
         let calendar = Calendar.current
         let dateToCheck = calendar.startOfDay(for: date)
         
-        // Просто проверяем, есть ли хотя бы одно событие на эту дату
+        // Проверяем события календаря
         if selectedEvents.contains(where: { calendar.startOfDay(for: $0.date) == dateToCheck }) {
-            return true  // Есть события - подчеркиваем
+            return true
         }
-        return false    // Нет событий - не подчеркиваем
+        
+        // Проверяем дедлайны проектов
+        if savedProjects.contains(where: { project in
+            guard let deadline = project.deadline else { return false }
+            return calendar.startOfDay(for: deadline) == dateToCheck
+        }) {
+            return true
+        }
+        
+        return false
     }
     
     var body: some View {
@@ -426,7 +501,8 @@ struct CalendarView: View {
                         hasEvents: hasEvents,
                         onDateSelected: {
                             showDayView = true
-                        }
+                        },
+                        savedProjects: $savedProjects
                     )
                     .padding()
                     
@@ -475,8 +551,29 @@ struct CalendarView: View {
                     DayView(
                         date: selectedDate,
                         selectedEvents: $selectedEvents,
+                        savedProjects: $savedProjects,
+                        selectedImage: $selectedImage,
+                        goals: $goals,
+                        cells: $cells,
+                        showGrid: $showGrid,
+                        currentProjectId: $currentProjectId,
+                        projectName: .constant(""),
+                        originalUIImage: .constant(nil),
+                        selectedDeadline: .constant(nil),
                         saveEvents: saveEvents,
-                        deleteEvent: deleteEvent
+                        deleteEvent: deleteEvent,
+                        onProjectSelected: { project in
+                            if let uiImage = UIImage(data: project.imageData) {
+                                selectedImage = Image(uiImage: uiImage)
+                                goals = project.goals
+                                cells = project.cells
+                                showGrid = project.showGrid
+                                currentProjectId = project.id
+                                shouldOpenProject = true
+                                showDayView = false
+                                dismiss()
+                            }
+                        }
                     )
                 } label: {
                     EmptyView()

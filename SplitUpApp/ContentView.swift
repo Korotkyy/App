@@ -976,14 +976,33 @@ struct ContentView: View {
                     // Очищаем предыдущее состояние
                     goals.removeAll()
                     cells.removeAll()
-                    currentProjectId = nil  // Важно!
-                    projectName = ""  // Очищаем имя проекта
-                    selectedDeadline = nil  // Очищаем дедлайн
+                    currentProjectId = nil
+                    projectName = ""
+                    selectedDeadline = nil
                     
                     // Устанавливаем новое изображение
                     originalUIImage = uiImage
                     selectedImage = Image(uiImage: uiImage)
                 }
+            }
+        }
+        .onChange(of: selectedDeadline) { newDeadline in
+            // Обновляем дедлайн в текущем проекте
+            if let currentId = currentProjectId,
+               let index = savedProjects.firstIndex(where: { $0.id == currentId }) {
+                var updatedProject = savedProjects[index]
+                updatedProject = SavedProject(
+                    id: updatedProject.id,
+                    imageData: updatedProject.imageData,
+                    thumbnailData: updatedProject.thumbnailData,
+                    goals: updatedProject.goals,
+                    projectName: updatedProject.projectName,
+                    cells: updatedProject.cells,
+                    showGrid: updatedProject.showGrid,
+                    deadline: newDeadline
+                )
+                savedProjects[index] = updatedProject
+                saveToStorage()
             }
         }
     }
