@@ -71,12 +71,15 @@ struct SavedProject: Identifiable, Codable {
     let projectName: String
     let cells: [Cell]
     let showGrid: Bool
+    let deadline: Date?  // Добавляем опциональную дату дедлайна
 }
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: Image? = nil
     @State private var projectName: String = ""
+    @State private var selectedDeadline: Date?
+    @State private var showDatePicker = false
     @State private var inputText: String = ""
     @State private var inputNumber: String = ""
     @State private var showInputs: Bool = false
@@ -203,10 +206,9 @@ struct ContentView: View {
     private func saveProject() {
         guard let uiImage = originalUIImage else { return }
         
-                let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
+        let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
         let imageData = uiImage.jpegData(compressionQuality: 1.0)!
         
-        // Загружаем существующие проекты
         var existingProjects: [SavedProject] = []
         if let data = UserDefaults.standard.data(forKey: "savedProjects"),
            let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
@@ -215,36 +217,33 @@ struct ContentView: View {
         
         if let currentId = currentProjectId,
            let existingIndex = existingProjects.firstIndex(where: { $0.id == currentId }) {
-            // Обновляем существующий проект, сохраняя его имя
             let updatedProject = SavedProject(
                 id: currentId,
                 imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
-                projectName: projectTitle,  // Используем текущее имя проекта
+                projectName: projectTitle,
                 cells: cells,
-                showGrid: showGrid
+                showGrid: showGrid,
+                deadline: selectedDeadline  // Добавляем дедлайн
             )
             existingProjects[existingIndex] = updatedProject
-            print("Обновили существующий проект: \(currentId) с именем: \(projectTitle)")
         } else {
-            // Создаем новый проект
             let newId = UUID()
-                let newProject = SavedProject(
+            let newProject = SavedProject(
                 id: newId,
-                    imageData: imageData,
+                imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
-                    goals: goals,
-                    projectName: projectTitle,
+                goals: goals,
+                projectName: projectTitle,
                 cells: cells,
-                showGrid: showGrid
+                showGrid: showGrid,
+                deadline: selectedDeadline  // Добавляем дедлайн
             )
             existingProjects.append(newProject)
             currentProjectId = newId
-            print("Создали новый проект: \(newId) с именем: \(projectTitle)")
         }
         
-        // Сохраняем обновленный массив проектов
         if let encoded = try? JSONEncoder().encode(existingProjects) {
             UserDefaults.standard.set(encoded, forKey: "savedProjects")
             UserDefaults.standard.synchronize()
@@ -277,12 +276,12 @@ struct ContentView: View {
                                 showingCalendar = true
                             }) {
                                 VStack {
-                                    Text(Date().formatted(date: .abbreviated, time: .omitted))
-                                        .font(.system(size: 17, weight: .medium))
-                                        .foregroundColor(.customBeige)
-                                    
                                     Image(systemName: "calendar")
                                         .font(.system(size: 30))
+                                        .foregroundColor(.customBeige)
+                                    
+                                    Text(Date().formatted(date: .abbreviated, time: .omitted))
+                                        .font(.system(size: 17, weight: .medium))
                                         .foregroundColor(.customBeige)
                                 }
                                 .frame(width: 160, height: 100)
@@ -356,6 +355,17 @@ struct ContentView: View {
                             }
                             
                             Button(action: {
+                                showDatePicker = true
+                            }) {
+                                Text(selectedDeadline == nil ? "Date" : "\(daysRemaining)")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.customDarkNavy)
+                                    .frame(width: UIScreen.main.bounds.width * 0.25, height: 40)
+                                    .background(Color.customBeige)
+                                    .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
                                 self.selectedImage = nil
                                 selectedItem = nil
                                 goals.removeAll()
@@ -377,6 +387,46 @@ struct ContentView: View {
                             }
                         }
                         .padding(.vertical, 5)
+                        
+                        // Добавим DatePicker
+                        if showDatePicker {
+                            VStack {
+                                DatePicker("Deadline", selection: Binding(
+                                    get: { selectedDeadline ?? Date() },
+                                    set: { selectedDeadline = $0 }
+                                ), in: Date()..., displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .padding()
+                                .background(Color.customNavy)
+                                .cornerRadius(12)
+                                
+                                HStack {
+                                    Button("Cancel") {
+                                        showDatePicker = false
+                                    }
+                                    .foregroundColor(.customBeige)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.customNavy)
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
+                                    )
+                                    
+                                    Button("Confirm") {
+                                        showDatePicker = false
+                                    }
+                                    .foregroundColor(.customDarkNavy)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.customBeige)
+                                    .cornerRadius(12)
+                                }
+                                .padding(.bottom)
+                            }
+                            .transition(.opacity)
+                        }
                         
                             // Поле для имени проекта
                         TextField("Project name", text: $projectName)
@@ -915,15 +965,15 @@ struct ContentView: View {
     // Добавим новую функцию для восстановления состояния сетки
     private func restoreGridState(from project: SavedProject) {
         if let uiImage = UIImage(data: project.imageData) {
-            originalUIImage = uiImage  // Сохраняем оригинальный UIImage
+            originalUIImage = uiImage
             selectedImage = Image(uiImage: uiImage)
-        goals = project.goals
-        cells = project.cells
-        showGrid = project.showGrid
+            goals = project.goals
+            cells = project.cells
+            showGrid = project.showGrid
             projectName = project.projectName
             currentProjectId = project.id
+            selectedDeadline = project.deadline  // Восстанавливаем дедлайн
             
-            // Принудительно обновляем layout
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 withAnimation {
                     isLayoutReady = true
@@ -992,6 +1042,21 @@ struct ContentView: View {
         let thumbnail = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return thumbnail?.jpegData(compressionQuality: 0.7)
+    }
+    
+    // Добавим вычисляемое свойство для отображения оставшихся дней
+    private var daysRemaining: String {
+        guard let deadline = selectedDeadline else { return "Date" }
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: Date(), to: deadline)
+        guard let days = components.day else { return "Date" }
+        if days == 0 {
+            return "Today"
+        } else if days == 1 {
+            return "1 day"
+        } else {
+            return "\(days) days"
+        }
     }
 }
 
