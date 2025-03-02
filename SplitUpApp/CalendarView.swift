@@ -29,7 +29,7 @@ struct DayView: View {
     var eventsForDay: [CalendarEvent] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        _ = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
         return selectedEvents.filter { event in
             let eventDate = calendar.startOfDay(for: event.date)
@@ -354,153 +354,34 @@ struct DayCell: View {
 }
 
 struct CalendarView: View {
-    @Environment(\.dismiss) var dismiss
-    @State private var selectedDate = Date()
-    @State private var showingSecondView = false
-    @State private var selectedEvents: [CalendarEvent] = []
-    @AppStorage("calendarEvents") private var eventsData: Data = Data()
-    @State private var showDayView = false
-    @State private var currentProjectId: UUID?
-    
     @Binding var savedProjects: [SavedProject]
     @Binding var selectedImage: Image?
     @Binding var goals: [Goal]
     @Binding var cells: [Cell]
     @Binding var showGrid: Bool
     
-    private func loadEvents() {
-        if let decoded = try? JSONDecoder().decode([CalendarEvent].self, from: eventsData) {
-            selectedEvents = decoded
-        }
-    }
-    
-    private func saveEvents() {
-        if let encoded = try? JSONEncoder().encode(selectedEvents) {
-            eventsData = encoded
-        }
-    }
-    
-    var eventsForSelectedDate: [CalendarEvent] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        return selectedEvents.filter { event in
-            let eventDate = calendar.startOfDay(for: event.date)
-            return eventDate == startOfDay
-        }
-        .sorted { $0.time < $1.time }
-    }
-    
-    private func deleteEvent(_ event: CalendarEvent) {
-        withAnimation {
-            selectedEvents.removeAll { $0.id == event.id }
-            saveEvents()
-            
-            // Если после удаления в текущем дне нет событий, закрываем DayView
-            if eventsForSelectedDate.isEmpty {
-                showDayView = false
-            }
-        }
-    }
-    
-    private func hasEvents(for date: Date) -> Bool {
-        let calendar = Calendar.current
-        let dateToCheck = calendar.startOfDay(for: date)
-        
-        // Просто проверяем, есть ли хотя бы одно событие на эту дату
-        if selectedEvents.contains(where: { calendar.startOfDay(for: $0.date) == dateToCheck }) {
-            return true  // Есть события - подчеркиваем
-        }
-        return false    // Нет событий - не подчеркиваем
-    }
-    
     var body: some View {
         NavigationView {
-            ZStack {
-                Color.customDarkNavy.ignoresSafeArea()
-                
-                VStack {
-                    CustomCalendarView(
-                        selectedDate: $selectedDate,
-                        hasEvents: hasEvents,
-                        onDateSelected: {
-                            showDayView = true
+            List {
+                ForEach(savedProjects.filter { $0.deadline != nil }) { project in
+                    VStack(alignment: .leading) {
+                        Text(project.projectName)
+                            .font(.headline)
+                            .foregroundColor(.customBeige)
+                        
+                        if let deadline = project.deadline {
+                            Text(deadline, style: .date)
+                                .font(.subheadline)
+                                .foregroundColor(.customAccent)
                         }
-                    )
-                    .padding()
-                    
-                    Spacer()
+                    }
+                    .padding(.vertical, 8)
                 }
             }
+            .listStyle(.plain)
+            .background(Color.customDarkNavy)
             .navigationTitle("Calendar")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(action: {
-                            // Остаемся на текущей странице
-                        }) {
-                            Label("Calendar", systemImage: "calendar")
-                                .foregroundColor(.gray)
-                        }
-                        .disabled(true)
-                        
-                        Button(action: {
-                            showingSecondView = true
-                        }) {
-                            Label("My Goals", systemImage: "list.bullet")
-                        }
-                        
-                        Button(action: {
-                            dismiss()
-                        }) {
-                            Label("Main", systemImage: "house")
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title)
-                            .foregroundColor(.white)
-                    }
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    Text("Calendar")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.white)
-                }
-            }
-            .background(
-                NavigationLink(isActive: $showDayView) {
-                    DayView(
-                        date: selectedDate,
-                        selectedEvents: $selectedEvents,
-                        saveEvents: saveEvents,
-                        deleteEvent: deleteEvent
-                    )
-                } label: {
-                    EmptyView()
-                }
-            )
-        }
-        .sheet(isPresented: $showingSecondView) {
-            SecondView(
-                savedProjects: $savedProjects,
-                selectedImage: $selectedImage,
-                goals: $goals,
-                isPresented: $showingSecondView,
-                cells: $cells,
-                showGrid: $showGrid,
-                currentProjectId: $currentProjectId,
-                projectName: .constant(""),
-                originalUIImage: .constant(nil)
-            )
-        }
-        .onChange(of: selectedEvents) { _ in
-            saveEvents()
-        }
-        .onAppear {
-            loadEvents()
         }
     }
 }
