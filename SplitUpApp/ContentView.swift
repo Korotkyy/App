@@ -106,6 +106,7 @@ struct ContentView: View {
     @State private var originalImageData: Data?
     @State private var originalUIImage: UIImage?
     @State private var isLayoutReady: Bool = false
+    @State private var showActionButtons = true  // Новое состояние
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + $1.scaledSquares }
@@ -509,43 +510,102 @@ struct ContentView: View {
                         .cornerRadius(12)
                         
                             // Кнопки Add и Divide Image
-                            HStack(spacing: 20) {
+                            if showGrid {
+                                // Кнопка для показа/скрытия действий
                                 Button(action: {
-                                    if isEditing {
-                                        updateGoal()
-                                        showEditForm = false
-                                        showInputs = false
-                                    } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
-                                        addGoal()
-                                        showInputs = false
-                                        clearInputs()
-                                    } else {
-                                        showInputs = true
-                                        clearInputs()
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        showActionButtons.toggle()
                                     }
                                 }) {
-                                    Text(isEditing ? "Update" : "Add")
+                                    Image(systemName: showActionButtons ? "chevron.down.circle.fill" : "plus.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.customBeige)
+                                }
+                                .padding(.vertical, 5)
+                                
+                                if showActionButtons {
+                                    HStack(spacing: 20) {
+                                        Button(action: {
+                                            if isEditing {
+                                                updateGoal()
+                                                showEditForm = false
+                                                showInputs = false
+                                            } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
+                                                addGoal()
+                                                showInputs = false
+                                                clearInputs()
+                                            } else {
+                                                showInputs = true
+                                                clearInputs()
+                                            }
+                                        }) {
+                                            Text(isEditing ? "Update" : "Add")
+                                                .foregroundColor(.customDarkNavy)
+                                                .frame(width: 100, height: 35)
+                                                .background(Color.customBeige)
+                                                .cornerRadius(12)
+                                        }
+                                        
+                                        Button(action: {
+                                            showGrid = true
+                                            showInputs = false
+                                            initializeCells()
+                                        }) {
+                                            HStack {
+                                                Image(systemName: "grid")
+                                                    .font(.system(size: 18))
+                                                Text("Divide Image")
+                                                    .font(.system(size: 15, weight: .medium))
+                                            }
+                                            .foregroundColor(.customDarkNavy)
+                                            .frame(width: 140, height: 35)
+                                            .background(Color.customBeige)
+                                            .cornerRadius(12)
+                                        }
+                                    }
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                }
+                            } else {
+                                // Показываем кнопки всегда, когда сетка не отображается
+                                HStack(spacing: 20) {
+                                    Button(action: {
+                                        if isEditing {
+                                            updateGoal()
+                                            showEditForm = false
+                                            showInputs = false
+                                        } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
+                                            addGoal()
+                                            showInputs = false
+                                            clearInputs()
+                                        } else {
+                                            showInputs = true
+                                            clearInputs()
+                                        }
+                                    }) {
+                                        Text(isEditing ? "Update" : "Add")
+                                            .foregroundColor(.customDarkNavy)
+                                            .frame(width: 100, height: 35)
+                                            .background(Color.customBeige)
+                                            .cornerRadius(12)
+                                    }
+                                    
+                                    Button(action: {
+                                        showGrid = true
+                                        showInputs = false
+                                        initializeCells()
+                                        showActionButtons = false  // Скрываем кнопки при разделении
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "grid")
+                                                .font(.system(size: 18))
+                                            Text("Divide Image")
+                                                .font(.system(size: 15, weight: .medium))
+                                        }
                                         .foregroundColor(.customDarkNavy)
-                                        .frame(width: 100, height: 35)
+                                        .frame(width: 140, height: 35)
                                         .background(Color.customBeige)
                                         .cornerRadius(12)
-                                }
-                                
-                                Button(action: {
-                                    showGrid = true
-                                    showInputs = false
-                                    initializeCells()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "grid")
-                                            .font(.system(size: 18))
-                                        Text("Divide Image")
-                                            .font(.system(size: 15, weight: .medium))
                                     }
-                                    .foregroundColor(.customDarkNavy)
-                                    .frame(width: 140, height: 35)
-                                    .background(Color.customBeige)
-                                    .cornerRadius(12)
                                 }
                             }
                             
