@@ -514,7 +514,14 @@ struct ContentView: View {
                                 // Кнопка для показа/скрытия действий
                                 Button(action: {
                                     withAnimation(.easeInOut(duration: 0.3)) {
-                                        showActionButtons.toggle()
+                                        if showActionButtons {
+                                            // Если закрываем действия, скрываем и инпуты
+                                            showActionButtons = false
+                                            showInputs = false
+                                            clearInputs()
+                                        } else {
+                                            showActionButtons = true
+                                        }
                                     }
                                 }) {
                                     Image(systemName: showActionButtons ? "chevron.down.circle.fill" : "plus.circle.fill")
@@ -530,8 +537,10 @@ struct ContentView: View {
                                                 updateGoal()
                                                 showEditForm = false
                                                 showInputs = false
-                                            } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
-                                                addGoal()
+                                            } else if showInputs {
+                                                if !inputText.isEmpty && !inputNumber.isEmpty {
+                                                    addGoal()
+                                                }
                                                 showInputs = false
                                                 clearInputs()
                                             } else {
@@ -573,8 +582,10 @@ struct ContentView: View {
                                             updateGoal()
                                             showEditForm = false
                                             showInputs = false
-                                        } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
-                                            addGoal()
+                                        } else if showInputs {
+                                            if !inputText.isEmpty && !inputNumber.isEmpty {
+                                                addGoal()
+                                            }
                                             showInputs = false
                                             clearInputs()
                                         } else {
@@ -610,7 +621,7 @@ struct ContentView: View {
                             }
                             
                             // Форма ввода/редактирования
-                            if (showInputs && !showGrid) || showEditForm {
+                            if showInputs || showEditForm {
                                 VStack(spacing: 10) {
                                     TextField("Enter text", text: $inputText)
                                         .textFieldStyle(CustomTextFieldStyle())
@@ -972,10 +983,14 @@ struct ContentView: View {
     }
     
     private func addGoal() {
-        if !inputText.isEmpty && !inputNumber.isEmpty {
-            let number = Int(inputNumber) ?? 0
-            let scale = calculateScale(for: number)
-            
+        // Проверяем валидность ввода
+        guard !inputText.isEmpty else { return }
+        guard !inputNumber.isEmpty else { return }
+        guard let number = Int(inputNumber), number > 0 else { return }
+        
+        let scale = calculateScale(for: number)
+        
+        withAnimation {
             goals.append(Goal(
                 text: inputText,
                 totalNumber: inputNumber,
@@ -983,7 +998,14 @@ struct ContentView: View {
                 unit: selectedUnit,
                 scale: scale
             ))
-            clearInputs()
+        }
+        
+        // Очищаем поля ввода
+        clearInputs()
+        
+        // Если сетка уже отображается, обновляем её
+        if showGrid {
+            initializeCells()
         }
     }
     

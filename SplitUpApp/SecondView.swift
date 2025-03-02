@@ -14,43 +14,39 @@ struct SecondView: View {
     
     // Добавляем функцию для сохранения
     private func saveProjects() {
-        if let encoded = try? JSONEncoder().encode(savedProjects) {
-            UserDefaults.standard.set(encoded, forKey: "savedProjects")
-            UserDefaults.standard.synchronize() // Принудительно сохраняем
-        }
+        guard let encoded = try? JSONEncoder().encode(savedProjects) else { return }
+        UserDefaults.standard.set(encoded, forKey: "savedProjects")
+        UserDefaults.standard.synchronize() // Принудительно сохраняем
     }
     
     // И добавим функцию загрузки проектов
     private func loadProjects() {
-        if let data = UserDefaults.standard.data(forKey: "savedProjects"),
-           let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
-            savedProjects = decoded
+        guard let data = UserDefaults.standard.data(forKey: "savedProjects"),
+              let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) else {
+            return
         }
+        savedProjects = decoded
     }
     
     private func restoreProject(_ project: SavedProject) {
-        if let uiImage = UIImage(data: project.imageData) {
-            // Сначала очищаем предыдущее состояние
-            selectedImage = nil
-            goals.removeAll()
-            cells.removeAll()
-            projectName = ""  // Важно очистить имя проекта!
-            
-            // Затем восстанавливаем проект
-            selectedImage = Image(uiImage: uiImage)
-            goals = project.goals
-            cells = project.cells
-            showGrid = project.showGrid
-            projectName = project.projectName  // Восстанавливаем имя проекта
-            currentProjectId = project.id      // Устанавливаем правильный ID
-            
-            // Сохраняем оригинальное изображение
-            if let originalImage = UIImage(data: project.imageData) {
-                originalUIImage = originalImage
-            }
-            
-            isPresented = false
-        }
+        guard let uiImage = UIImage(data: project.imageData) else { return }
+        
+        // Сначала очищаем предыдущее состояние
+        selectedImage = nil
+        goals.removeAll()
+        cells.removeAll()
+        projectName = ""  // Важно очистить имя проекта!
+        
+        // Затем восстанавливаем проект
+        selectedImage = Image(uiImage: uiImage)
+        goals = project.goals
+        cells = project.cells
+        showGrid = project.showGrid
+        projectName = project.projectName  // Восстанавливаем имя проекта
+        currentProjectId = project.id      // Устанавливаем правильный ID
+        originalUIImage = uiImage          // Сохраняем оригинальное изображение
+        
+        isPresented = false
     }
     
     private func getImage(from data: Data) -> Image {
@@ -58,6 +54,38 @@ struct SecondView: View {
             return Image(uiImage: uiImage)
         }
         return Image(systemName: "photo")
+    }
+    
+    private func getDaysRemaining(for date: Date?) -> String {
+        guard let deadline = date else { return "" }
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: Date(), to: deadline)
+        guard let days = components.day else { return "" }
+        
+        if days < 0 {
+            return "Expired"
+        } else if days == 0 {
+            return "Today"
+        } else if days == 1 {
+            return "1 day left"
+        } else {
+            return "\(days) days left"
+        }
+    }
+    
+    private func getDeadlineColor(for date: Date?) -> Color {
+        guard let deadline = date else { return .white }
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: Date(), to: deadline)
+        guard let days = components.day else { return .white }
+        
+        if days < 0 {
+            return .red
+        } else if days <= 3 {
+            return .orange
+        } else {
+            return .green
+        }
     }
     
     var body: some View {
@@ -73,7 +101,7 @@ struct SecondView: View {
                     ], spacing: 20) {
                         ForEach(savedProjects) { project in
                             ZStack(alignment: .topTrailing) {
-                                VStack {
+                                VStack(spacing: 4) {
                                     getImage(from: project.thumbnailData)
                                         .resizable()
                                         .scaledToFill()
@@ -88,9 +116,20 @@ struct SecondView: View {
                                     Text(project.projectName)
                                         .font(.system(size: UIScreen.main.bounds.width * 0.035))
                                         .foregroundColor(.white)
-                                        .padding(.top, 4)
-                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .lineLimit(1)
+                                    
+                                    if let deadline = project.deadline {
+                                        Text(getDaysRemaining(for: deadline))
+                                            .font(.system(size: UIScreen.main.bounds.width * 0.03))
+                                            .foregroundColor(getDeadlineColor(for: deadline))
+                                            .padding(.vertical, 2)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.customNavy)
+                                            .cornerRadius(5)
+                                    }
                                 }
+                                .frame(width: UIScreen.main.bounds.width * 0.43)
+                                .padding(.vertical, 8)
                                 .background(Color.customNavy)
                                 .cornerRadius(10)
                                 .onTapGesture {

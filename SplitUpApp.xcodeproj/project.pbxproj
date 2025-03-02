@@ -11,7 +11,7 @@
 		AA6F17972D64A22300DED347 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA6F17962D64A22300DED347 /* LaunchScreen.storyboard */; };
 		AA8655892D6E03B30063DE78 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA8655882D6E03B30063DE78 /* Colors.swift */; };
 		AA97B9242D5D1C890017C729 /* SecondView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA97B9232D5D1C890017C729 /* SecondView.swift */; };
-		AAE102DB2D5BEBA00025A6C2 /* SplitUpAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102DA2D5BEBA00025A6C2 /* SplitUpAppApp.swift */; };
+		AAE102DB2D5BEBA00025A6C2 /* SplitUpApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102DA2D5BEBA00025A6C2 /* SplitUpApp.swift */; };
 		AAE102DD2D5BEBA00025A6C2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE102DC2D5BEBA00025A6C2 /* ContentView.swift */; };
 		AAE102DF2D5BEBA10025A6C2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAE102DE2D5BEBA10025A6C2 /* Assets.xcassets */; };
 		AAE102E22D5BEBA10025A6C2 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAE102E12D5BEBA10025A6C2 /* Preview Assets.xcassets */; };
@@ -44,7 +44,7 @@
 		AA8655882D6E03B30063DE78 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
 		AA97B9232D5D1C890017C729 /* SecondView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondView.swift; sourceTree = "<group>"; };
 		AAE102D72D5BEBA00025A6C2 /* SplitUpApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SplitUpApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AAE102DA2D5BEBA00025A6C2 /* SplitUpAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitUpAppApp.swift; sourceTree = "<group>"; };
+		AAE102DA2D5BEBA00025A6C2 /* SplitUpApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitUpApp.swift; sourceTree = "<group>"; };
 		AAE102DC2D5BEBA00025A6C2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AAE102DE2D5BEBA10025A6C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AAE102E12D5BEBA10025A6C2 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -104,7 +104,7 @@
 		AAE102D92D5BEBA00025A6C2 /* SplitUpApp */ = {
 			isa = PBXGroup;
 			children = (
-				AAE102DA2D5BEBA00025A6C2 /* SplitUpAppApp.swift */,
+				AAE102DA2D5BEBA00025A6C2 /* SplitUpApp.swift */,
 				AAE102DC2D5BEBA00025A6C2 /* ContentView.swift */,
 				AA97B9232D5D1C890017C729 /* SecondView.swift */,
 				AAE102DE2D5BEBA10025A6C2 /* Assets.xcassets */,
@@ -277,7 +277,7 @@
 				AA8655892D6E03B30063DE78 /* Colors.swift in Sources */,
 				AAF74A8A2D6F0E7500A5859A /* CalendarView.swift in Sources */,
 				AAE102DD2D5BEBA00025A6C2 /* ContentView.swift in Sources */,
-				AAE102DB2D5BEBA00025A6C2 /* SplitUpAppApp.swift in Sources */,
+				AAE102DB2D5BEBA00025A6C2 /* SplitUpApp.swift in Sources */,
 				AA0708532D6E051800D76788 /* CustomTextFieldStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -440,6 +440,7 @@
 				DEVELOPMENT_TEAM = 9L29AG9R55;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SpitUp;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -452,7 +453,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.MichaelKorotkey.SplitUpApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MichaelKorotkey.SplitUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -471,6 +472,7 @@
 				DEVELOPMENT_TEAM = 9L29AG9R55;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SpitUp;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -483,7 +485,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.MichaelKorotkey.SplitUpApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MichaelKorotkey.SplitUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
