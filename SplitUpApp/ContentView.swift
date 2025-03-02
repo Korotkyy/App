@@ -374,6 +374,8 @@ struct ContentView: View {
                                 cells.removeAll()
                                 coloredCount = 0
                                 clearInputs()
+                                projectName = ""  // Очищаем имя проекта
+                                selectedDeadline = nil  // Очищаем дедлайн
                             }) {
                                 Text("Close")
                                     .fontWeight(.bold)
@@ -498,6 +500,7 @@ struct ContentView: View {
                                 selectedImage!
                                     .resizable()
                                     .scaledToFit()
+                                    .frame(maxWidth: UIScreen.main.bounds.width * 0.95)  // Ограничиваем максимальную ширину
                             }
                             
                             // Информация о целях
@@ -874,7 +877,8 @@ struct ContentView: View {
                 showGrid: $showGrid,
                 currentProjectId: $currentProjectId,
                 projectName: $projectName,
-                originalUIImage: $originalUIImage
+                originalUIImage: $originalUIImage,
+                selectedDeadline: $selectedDeadline
             )
         }
         .sheet(isPresented: $showGoalsList) {
@@ -973,6 +977,8 @@ struct ContentView: View {
                     goals.removeAll()
                     cells.removeAll()
                     currentProjectId = nil  // Важно!
+                    projectName = ""  // Очищаем имя проекта
+                    selectedDeadline = nil  // Очищаем дедлайн
                     
                     // Устанавливаем новое изображение
                     originalUIImage = uiImage
@@ -1163,11 +1169,11 @@ extension Image {
             self
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+                .frame(width: 300, height: 300)  // Уменьшаем размер до 300x300
         )
         
         let view = controller.view
-        let targetSize = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+        let targetSize = CGSize(width: 300, height: 300)  // Уменьшаем целевой размер
         view?.bounds = CGRect(origin: .zero, size: targetSize)
         view?.backgroundColor = .clear
         

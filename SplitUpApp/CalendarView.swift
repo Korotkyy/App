@@ -493,7 +493,8 @@ struct CalendarView: View {
                 showGrid: $showGrid,
                 currentProjectId: $currentProjectId,
                 projectName: .constant(""),
-                originalUIImage: .constant(nil)
+                originalUIImage: .constant(nil),
+                selectedDeadline: .constant(nil)
             )
         }
         .onChange(of: selectedEvents) { _ in

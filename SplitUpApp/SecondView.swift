@@ -11,6 +11,7 @@ struct SecondView: View {
     @Binding var currentProjectId: UUID?
     @Binding var projectName: String
     @Binding var originalUIImage: UIImage?
+    @Binding var selectedDeadline: Date?
     
     // Добавляем функцию для сохранения
     private func saveProjects() {
@@ -45,6 +46,7 @@ struct SecondView: View {
         projectName = project.projectName  // Восстанавливаем имя проекта
         currentProjectId = project.id      // Устанавливаем правильный ID
         originalUIImage = uiImage          // Сохраняем оригинальное изображение
+        selectedDeadline = project.deadline  // Восстанавливаем дедлайн
         
         isPresented = false
     }
@@ -214,7 +216,8 @@ struct SecondView_Previews: PreviewProvider {
             showGrid: .constant(true),
             currentProjectId: .constant(nil),
             projectName: .constant(""),
-            originalUIImage: .constant(nil)
+            originalUIImage: .constant(nil),
+            selectedDeadline: .constant(nil)
         )
         .previewDevice("iPhone 14")  // Указываем конкретное устройство
     }
