@@ -80,24 +80,17 @@ struct DayView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 15) {
                             ForEach(projectsWithDeadline) { project in
-                                Button(action: {
-                                    openProject(project)
-                                }) {
-                                    VStack {
-                                        if let imageData = project.thumbnailData,
-                                           let uiImage = UIImage(data: imageData) {
-                                            Image(uiImage: uiImage)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 60, height: 60)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                        }
-                                        Text(project.projectName)
-                                            .font(.caption)
-                                            .foregroundColor(.white)
-                                            .lineLimit(1)
+                                if let thumbnailData = project.thumbnailData,
+                                   let uiImage = UIImage(data: thumbnailData) {
+                                    Button(action: {
+                                        openProject(project)
+                                    }) {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 40, height: 40)
+                                            .cornerRadius(8)
                                     }
-                                    .frame(width: 70)
                                 }
                             }
                         }

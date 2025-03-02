@@ -1,3 +1,7 @@
+// Зависимости:
+// 1. Colors.swift - определение пользовательских цветов (customNavy, customDarkNavy, customBeige, customAccent)
+// 2. ContentView.swift - определение структур SavedProject, Goal, Cell и enum GoalUnit
+
 import SwiftUI
 
 struct SecondView: View {
@@ -15,18 +19,23 @@ struct SecondView: View {
     
     // Добавляем функцию для сохранения
     private func saveProjects() {
-        guard let encoded = try? JSONEncoder().encode(savedProjects) else { return }
-        UserDefaults.standard.set(encoded, forKey: "savedProjects")
-        UserDefaults.standard.synchronize() // Принудительно сохраняем
+        if let encoded = try? JSONEncoder().encode(savedProjects) {
+            UserDefaults.standard.set(encoded, forKey: "savedProjects")
+            UserDefaults.standard.synchronize()
+        }
     }
     
     // И добавим функцию загрузки проектов
     private func loadProjects() {
-        guard let data = UserDefaults.standard.data(forKey: "savedProjects"),
-              let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) else {
-            return
+        if let data = UserDefaults.standard.data(forKey: "savedProjects"),
+           let decoded = try? JSONDecoder().decode([SavedProject].self, from: data) {
+            savedProjects = decoded
         }
-        savedProjects = decoded
+    }
+    
+    private func closeView() {
+        dismiss()
+        isPresented = false
     }
     
     private func restoreProject(_ project: SavedProject) {
@@ -51,8 +60,8 @@ struct SecondView: View {
         isPresented = false
     }
     
-    private func getImage(from data: Data) -> Image {
-        if let uiImage = UIImage(data: data) {
+    private func getImage(from data: Data?) -> Image {
+        if let data = data, let uiImage = UIImage(data: data) {
             return Image(uiImage: uiImage)
         }
         return Image(systemName: "photo")
@@ -93,68 +102,80 @@ struct SecondView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.customDarkNavy  // Заменяем Image("background") на сплошной цвет
+                Color.customDarkNavy
                     .ignoresSafeArea()
                 
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 20) {
-                        ForEach(savedProjects) { project in
-                            ZStack(alignment: .topTrailing) {
-                                VStack(spacing: 4) {
-                                    getImage(from: project.thumbnailData)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: UIScreen.main.bounds.width * 0.4,
-                                               height: UIScreen.main.bounds.width * 0.4)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
-                                        )
-                                    
-                                    Text(project.projectName)
-                                        .font(.system(size: UIScreen.main.bounds.width * 0.035))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                    
-                                    if let deadline = project.deadline {
-                                        Text(getDaysRemaining(for: deadline))
-                                            .font(.system(size: UIScreen.main.bounds.width * 0.03))
-                                            .foregroundColor(getDeadlineColor(for: deadline))
-                                            .padding(.vertical, 2)
-                                            .padding(.horizontal, 8)
-                                            .background(Color.customNavy)
-                                            .cornerRadius(5)
+                if savedProjects.isEmpty {
+                    VStack {
+                        Image(systemName: "square.stack.3d.up")
+                            .font(.system(size: 50))
+                            .foregroundColor(.customBeige)
+                        Text("No goals yet")
+                            .font(.title2)
+                            .foregroundColor(.customBeige)
+                            .padding(.top)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 20) {
+                            ForEach(savedProjects) { project in
+                                ZStack(alignment: .topTrailing) {
+                                    VStack(spacing: 4) {
+                                        getImage(from: project.thumbnailData)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: UIScreen.main.bounds.width * 0.4,
+                                                   height: UIScreen.main.bounds.width * 0.4)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                                            )
+                                        
+                                        Text(project.projectName)
+                                            .font(.system(size: UIScreen.main.bounds.width * 0.035))
+                                            .foregroundColor(.white)
+                                            .lineLimit(1)
+                                        
+                                        if let deadline = project.deadline {
+                                            Text(getDaysRemaining(for: deadline))
+                                                .font(.system(size: UIScreen.main.bounds.width * 0.03))
+                                                .foregroundColor(getDeadlineColor(for: deadline))
+                                                .padding(.vertical, 2)
+                                                .padding(.horizontal, 8)
+                                                .background(Color.customNavy)
+                                                .cornerRadius(5)
+                                        }
                                     }
-                                }
-                                .frame(width: UIScreen.main.bounds.width * 0.43)
-                                .padding(.vertical, 8)
-                                .background(Color.customNavy)
-                                .cornerRadius(10)
-                                .onTapGesture {
-                                    restoreProject(project)
-                                }
-                                
-                                Button(action: {
-                                    if let index = savedProjects.firstIndex(where: { $0.id == project.id }) {
-                                        savedProjects.remove(at: index)
-                                        saveProjects()
+                                    .frame(width: UIScreen.main.bounds.width * 0.43)
+                                    .padding(.vertical, 8)
+                                    .background(Color.customNavy)
+                                    .cornerRadius(10)
+                                    .onTapGesture {
+                                        restoreProject(project)
                                     }
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 22))
-                                        .foregroundColor(.red)
-                                        .background(Color.white.clipShape(Circle()))
+                                    
+                                    Button(action: {
+                                        if let index = savedProjects.firstIndex(where: { $0.id == project.id }) {
+                                            savedProjects.remove(at: index)
+                                            saveProjects()
+                                        }
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 22))
+                                            .foregroundColor(.red)
+                                            .background(Color.white.clipShape(Circle()))
+                                    }
+                                    .offset(x: 10, y: -10)
                                 }
-                                .offset(x: 10, y: -10)
                             }
                         }
+                        .padding()
+                        .padding(.top, 60)
                     }
-                    .padding()
-                    .padding(.top, 60) // Увеличиваем отступ сверху
                 }
             }
             .navigationTitle("My Goals")
@@ -178,9 +199,7 @@ struct SecondView: View {
                             Label("Privacy Policy", systemImage: "doc.text")
                         }
                         
-                        Button(action: {
-                            isPresented = false
-                        }) {
+                        Button(action: closeView) {
                             Label("Main", systemImage: "house")
                         }
                     } label: {
@@ -198,7 +217,7 @@ struct SecondView: View {
             }
         }
         .onAppear {
-            loadProjects() // Загружаем все проекты при открытии экрана
+            loadProjects()
         }
     }
 }

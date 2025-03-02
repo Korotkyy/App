@@ -65,13 +65,13 @@ struct Cell: Codable {
 
 struct SavedProject: Identifiable, Codable {
     let id: UUID
-    let imageData: Data        // Оригинальное изображение
-    let thumbnailData: Data    // Маленькое изображение для превью
-    let goals: [Goal]
     let projectName: String
+    let imageData: Data
+    let thumbnailData: Data?    // Маленькое изображение для превью
+    let goals: [Goal]
     let cells: [Cell]
     let showGrid: Bool
-    let deadline: Date?  // Добавляем опциональную дату дедлайна
+    let deadline: Date?
 }
 
 struct ContentView: View {
@@ -220,10 +220,10 @@ struct ContentView: View {
            let existingIndex = existingProjects.firstIndex(where: { $0.id == currentId }) {
             let updatedProject = SavedProject(
                 id: currentId,
+                projectName: projectTitle,
                 imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
-                projectName: projectTitle,
                 cells: cells,
                 showGrid: showGrid,
                 deadline: selectedDeadline  // Добавляем дедлайн
@@ -233,10 +233,10 @@ struct ContentView: View {
             let newId = UUID()
             let newProject = SavedProject(
                 id: newId,
+                projectName: projectTitle,
                 imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
                 goals: goals,
-                projectName: projectTitle,
                 cells: cells,
                 showGrid: showGrid,
                 deadline: selectedDeadline  // Добавляем дедлайн
@@ -993,10 +993,10 @@ struct ContentView: View {
                 var updatedProject = savedProjects[index]
                 updatedProject = SavedProject(
                     id: updatedProject.id,
+                    projectName: updatedProject.projectName,
                     imageData: updatedProject.imageData,
                     thumbnailData: updatedProject.thumbnailData,
                     goals: updatedProject.goals,
-                    projectName: updatedProject.projectName,
                     cells: updatedProject.cells,
                     showGrid: updatedProject.showGrid,
                     deadline: newDeadline
