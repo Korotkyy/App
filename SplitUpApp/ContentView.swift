@@ -79,7 +79,7 @@ struct ContentView: View {
     @State private var projectName: String = ""
     @State private var inputText: String = ""
     @State private var inputNumber: String = ""
-    @State private var showInputs: Bool = true
+    @State private var showInputs: Bool = false
     @State private var goals: [Goal] = []
     @State private var editingGoal: Goal?
     @State private var isEditing = false
@@ -102,6 +102,7 @@ struct ContentView: View {
     @State private var currentProjectId: UUID?
     @State private var originalImageData: Data?
     @State private var originalUIImage: UIImage?
+    @State private var isLayoutReady: Bool = false
     
     private var totalSquares: Int {
         goals.reduce(0) { $0 + $1.scaledSquares }
@@ -150,10 +151,10 @@ struct ContentView: View {
     private func colorRandomCells(count: Int, goalId: UUID, markAsCompleted: Bool = false) {
         if let goal = goals.first(where: { $0.id == goalId }) {
             // Получаем все незакрашенные клетки на всем изображении
-            var availablePositions = cells.enumerated()
-                .filter { !$0.element.isColored }
-                .map { $0.offset }
-            
+        var availablePositions = cells.enumerated()
+            .filter { !$0.element.isColored }
+            .map { $0.offset }
+        
             // Рассчитываем, сколько клеток нужно закрасить
             let totalAmount = Double(Int(goal.totalNumber) ?? 0)
             let proportion = Double(count) / totalAmount
@@ -161,12 +162,12 @@ struct ContentView: View {
             
             // Закрашиваем клетки случайным образом по всему изображению
             for _ in 0..<min(cellsToColor, availablePositions.count) {
-                guard let randomIndex = availablePositions.indices.randomElement() else { break }
-                let position = availablePositions.remove(at: randomIndex)
-                cells[position].isColored = true
-                coloredCount += 1
-            }
-            
+            guard let randomIndex = availablePositions.indices.randomElement() else { break }
+            let position = availablePositions.remove(at: randomIndex)
+            cells[position].isColored = true
+            coloredCount += 1
+        }
+        
             // Обновляем отображение
             showGrid = false
             showGrid = true
@@ -202,7 +203,7 @@ struct ContentView: View {
     private func saveProject() {
         guard let uiImage = originalUIImage else { return }
         
-        let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
+                let projectTitle = projectName.isEmpty ? goals.first?.text ?? "Untitled" : projectName
         let imageData = uiImage.jpegData(compressionQuality: 1.0)!
         
         // Загружаем существующие проекты
@@ -229,12 +230,12 @@ struct ContentView: View {
         } else {
             // Создаем новый проект
             let newId = UUID()
-            let newProject = SavedProject(
+                let newProject = SavedProject(
                 id: newId,
-                imageData: imageData,
+                    imageData: imageData,
                 thumbnailData: createThumbnail(from: uiImage) ?? imageData,
-                goals: goals,
-                projectName: projectTitle,
+                    goals: goals,
+                    projectName: projectTitle,
                 cells: cells,
                 showGrid: showGrid
             )
@@ -266,77 +267,82 @@ struct ContentView: View {
                 Color.customDarkNavy
                     .ignoresSafeArea()
                 
-                VStack {
-                    if selectedImage == nil {
-                        // Кнопка Calendar
-                        Button(action: {
-                            showingCalendar = true
-                        }) {
-                            VStack {
-                                Text(Date().formatted(date: .abbreviated, time: .omitted))
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(.customBeige)
-                                
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.customBeige)
+                ScrollView {
+                    VStack(spacing: selectedImage == nil ? 20 : 10) {
+                        if selectedImage == nil {
+                            Spacer()
+                                .frame(height: 50)  // Добавляем отступ сверху для главного экрана
+                            // Кнопка Calendar
+                            Button(action: {
+                                showingCalendar = true
+                            }) {
+                                VStack {
+                                    Text(Date().formatted(date: .abbreviated, time: .omitted))
+                                        .font(.system(size: 17, weight: .medium))
+                                        .foregroundColor(.customBeige)
+                                    
+                                    Image(systemName: "calendar")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.customBeige)
+                                }
+                                .frame(width: 160, height: 100)
+                                .background(Color.customNavy)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                                )
                             }
-                            .frame(width: 160, height: 100)
-                            .background(Color.customNavy)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                        .padding(.bottom, 20)
-                        
-                        // Кнопка New Goal (бывшая Upload Image)
-                        PhotosPicker(
-                            selection: $selectedItem,
-                            matching: .images
-                        ) {
-                            VStack {
-                                Image(systemName: "photo.fill")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.customBeige)
-                                
-                                Text("New Goal")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(.customBeige)
+                            .padding(.bottom, 20)
+                            
+                            // Кнопка New Goal (бывшая Upload Image)
+                            PhotosPicker(
+                                selection: $selectedItem,
+                                matching: .images
+                            ) {
+                                VStack {
+                                    Image(systemName: "photo.fill")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.customBeige)
+                                    
+                                    Text("New Goal")
+                                        .font(.system(size: 17, weight: .medium))
+                                        .foregroundColor(.customBeige)
+                                }
+                                .frame(width: 160, height: 100)
+                                .background(Color.customNavy)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                                )
                             }
-                            .frame(width: 160, height: 100)
-                            .background(Color.customNavy)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                        .padding(.bottom, 20)
-                        
-                        // Новая кнопка My Goals
-                        Button(action: {
-                            showingSecondView = true
-                        }) {
-                            VStack {
-                                Image(systemName: "list.bullet")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.customBeige)
-                                
-                                Text("My Goals")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(.customBeige)
+                            .padding(.bottom, 20)
+                            
+                            // Новая кнопка My Goals
+                            Button(action: {
+                                showingSecondView = true
+                            }) {
+                                VStack {
+                                    Image(systemName: "list.bullet")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.customBeige)
+                                    
+                                    Text("My Goals")
+                                        .font(.system(size: 17, weight: .medium))
+                                        .foregroundColor(.customBeige)
+                                }
+                                .frame(width: 160, height: 100)
+                                .background(Color.customNavy)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
+                                )
                             }
-                            .frame(width: 160, height: 100)
-                            .background(Color.customNavy)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.customAccent.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                    } else {
+                        } else {
+                            Spacer()
+                                .frame(height: 20)  // Добавляем отступ сверху для экрана с изображением
                         HStack(spacing: 20) {
                             Button(action: {
                                 saveProject()
@@ -354,162 +360,150 @@ struct ContentView: View {
                                 selectedItem = nil
                                 goals.removeAll()
                                 showGrid = false
-                                savedState = nil
                                 cells.removeAll()
                                 coloredCount = 0
                                 clearInputs()
                             }) {
-                                Text("Delete")
+                                Text("Close")
                                     .fontWeight(.bold)
                                     .foregroundColor(.customBeige)
-                                    .frame(width: 100, height: 40)
-                                    .background(Color.red.opacity(0.8))
+                                    .frame(width: UIScreen.main.bounds.width * 0.25, height: 40)
+                                    .background(Color.customNavy)
                                     .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
+                                    )
                             }
                         }
                         .padding(.vertical, 5)
                         
-                        // Поле для имени проекта
+                            // Поле для имени проекта
                         TextField("Project name", text: $projectName)
                             .textFieldStyle(CustomTextFieldStyle())
                             .padding(.horizontal)
                             .padding(.vertical, 5)
                             .multilineTextAlignment(.center)
                         
-                        if showGrid {
-                            ZStack {
-                                GeometryReader { geometry in
-                                    let imageSize = geometry.size.width // Используем квадратный размер
-                                    
-                                    ZStack {
-                                        // Основное изображение
-                                        selectedImage!
+                            if showGrid {
+                                ZStack {
+                                    GeometryReader { geometry in
+                                        let imageSize = geometry.size.width // Используем квадратный размер
+                                        
+                                        ZStack {
+                                            // Основное изображение
+                                            selectedImage!
                                             .resizable()
-                                            .aspectRatio(contentMode: .fill) // Возвращаем .fill
-                                            .frame(width: imageSize, height: imageSize)
+                                                .aspectRatio(contentMode: .fill) // Возвращаем .fill
+                                                .frame(width: imageSize, height: imageSize)
                                             .clipped()
                                             .grayscale(1.0)
-                                        
+                                    
                                         let dimensions = calculateGridDimensions()
-                                        let cellWidth = imageSize / CGFloat(dimensions.columns)
-                                        let cellHeight = imageSize / CGFloat(dimensions.rows)
+                                            let cellWidth = imageSize / CGFloat(dimensions.columns)
+                                            let cellHeight = imageSize / CGFloat(dimensions.rows)
                                         
-                                        // Цветные клетки
+                                            // Цветные клетки
                                         ForEach(0..<cells.count, id: \.self) { index in
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
                                             if cells[index].isColored {
-                                                selectedImage!
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fill)
-                                                    .frame(width: imageSize, height: imageSize)
-                                                    .clipped()
-                                                    .mask(
-                                                        Rectangle()
-                                                            .frame(width: cellWidth, height: cellHeight)
-                                                            .position(
-                                                                x: cellWidth * CGFloat(col) + cellWidth/2,
-                                                                y: cellHeight * CGFloat(row) + cellHeight/2
-                                                            )
-                                                    )
+                                                    selectedImage!
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fill)
+                                                        .frame(width: imageSize, height: imageSize)
+                                                        .clipped()
+                                                        .mask(
+                                                            Rectangle()
+                                                                .frame(width: cellWidth, height: cellHeight)
+                                                                .position(
+                                                                    x: cellWidth * CGFloat(col) + cellWidth/2,
+                                                                    y: cellHeight * CGFloat(row) + cellHeight/2
+                                                                )
+                                                        )
                                             }
                                         }
                                         
-                                        // Сетка
+                                            // Сетка
                                         ForEach(0..<cells.count, id: \.self) { index in
                                             let row = index / dimensions.columns
                                             let col = index % dimensions.columns
                                             if !cells[index].isColored {
                                                 Rectangle()
                                                     .stroke(Color.white, lineWidth: 1)
-                                                    .frame(width: cellWidth, height: cellHeight)
+                                                        .frame(width: cellWidth, height: cellHeight)
                                                     .position(
-                                                        x: cellWidth * CGFloat(col) + cellWidth/2,
-                                                        y: cellHeight * CGFloat(row) + cellHeight/2
-                                                    )
+                                                            x: cellWidth * CGFloat(col) + cellWidth/2,
+                                                            y: cellHeight * CGFloat(row) + cellHeight/2
+                                                        )
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                .frame(width: UIScreen.main.bounds.width * 0.95)
+                                .frame(height: UIScreen.main.bounds.width * 0.95) // Делаем контейнер квадратным
+                            } else {
+                                selectedImage!
+                                    .resizable()
+                                    .scaledToFit()
                             }
-                            .frame(width: UIScreen.main.bounds.width * 0.95)
-                            .frame(height: UIScreen.main.bounds.width * 0.95) // Делаем контейнер квадратным
-                        } else {
-                            selectedImage!
-                                .resizable()
-                                .scaledToFit()
-                        }
-                        
-                        // Информация о целях
-                        HStack {
-                            Text("Total: \(goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) })")
+                            
+                            // Информация о целях
+                            HStack {
+                                Text("Total: \(goals.reduce(0) { $0 + (Int($1.totalNumber) ?? 0) })")
                             Text("Remaining: \(goals.reduce(0) { $0 + (Int($1.remainingNumber) ?? 0) })")
                         }
-                        .padding()
+                            .padding()
                         .background(Color.customNavy)
                         .cornerRadius(12)
                         
-                        // Кнопки Add и Divide Image
-                        HStack(spacing: 20) {
-                            Button(action: {
-                                isEditing ? updateGoal() : addGoal()
-                                showInputs = true
-                            }) {
-                                Text(isEditing ? "Update" : "Add")
+                            // Кнопки Add и Divide Image
+                            HStack(spacing: 20) {
+                                Button(action: {
+                                    if isEditing {
+                                        updateGoal()
+                                        showEditForm = false
+                                        showInputs = false
+                                    } else if showInputs && !inputText.isEmpty && !inputNumber.isEmpty {
+                                        addGoal()
+                                        showInputs = false
+                                        clearInputs()
+                                    } else {
+                                        showInputs = true
+                                        clearInputs()
+                                    }
+                                }) {
+                                    Text(isEditing ? "Update" : "Add")
+                                        .foregroundColor(.customDarkNavy)
+                                        .frame(width: 100, height: 35)
+                                        .background(Color.customBeige)
+                                        .cornerRadius(12)
+                                }
+                                
+                                Button(action: {
+                                    showGrid = true
+                                    showInputs = false
+                                    initializeCells()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "grid")
+                                            .font(.system(size: 18))
+                                        Text("Divide Image")
+                                            .font(.system(size: 15, weight: .medium))
+                                    }
                                     .foregroundColor(.customDarkNavy)
-                                    .frame(width: 100, height: 35)
+                                    .frame(width: 140, height: 35)
                                     .background(Color.customBeige)
                                     .cornerRadius(12)
+                                }
                             }
                             
-                            Button(action: {
-                                showGrid = true
-                                showInputs = false
-                                initializeCells()
-                            }) {
-                                HStack {
-                                    Image(systemName: "grid")
-                                        .font(.system(size: 18))
-                                    Text("Divide Image")
-                                        .font(.system(size: 15, weight: .medium))
-                                }
-                                .foregroundColor(.customDarkNavy)
-                                .frame(width: 140, height: 35)
-                                .background(Color.customBeige)
-                                .cornerRadius(12)
-                            }
-                        }
-                        
-                        // Форма ввода/редактирования
-                        if showInputs || showEditForm {
-                            VStack(spacing: 10) {
-                                TextField("Enter text", text: $inputText)
-                                    .textFieldStyle(CustomTextFieldStyle())
-                                    .padding(.horizontal)
-                                    .background(Color.customBeige.opacity(0.1))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
-                                    )
-                                    .toolbar {
-                                        ToolbarItemGroup(placement: .keyboard) {
-                                            Spacer()
-                                            Button(action: {
-                                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                    to: nil, from: nil, for: nil)
-                                            }) {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundColor(.customAccent)
-                                                    .font(.system(size: 20))
-                                            }
-                                        }
-                                    }
-                                
-                                HStack {
-                                    TextField("Enter number", text: $inputNumber)
+                            // Форма ввода/редактирования
+                            if (showInputs && !showGrid) || showEditForm {
+                                VStack(spacing: 10) {
+                                    TextField("Enter text", text: $inputText)
                                         .textFieldStyle(CustomTextFieldStyle())
-                                        .keyboardType(.numberPad)
                                         .padding(.horizontal)
                                         .background(Color.customBeige.opacity(0.1))
                                         .cornerRadius(12)
@@ -517,225 +511,238 @@ struct ContentView: View {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
                                         )
+                                        .toolbar {
+                                            ToolbarItemGroup(placement: .keyboard) {
+                                                Spacer()
+                                                Button(action: {
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                                                }) {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(.customAccent)
+                                                        .font(.system(size: 20))
+                                                }
+                                            }
+                                        }
                                     
-                                    Picker("Unit", selection: $selectedUnit) {
-                                        Section(header: Text("Количество").foregroundColor(.gray)) {
-                                            ForEach([GoalUnit.pieces, .packs, .kilograms, .liters, .meters], id: \.self) { unit in
-                                                Text(unit.rawValue).tag(unit)
+                                    HStack {
+                                        TextField("Enter number", text: $inputNumber)
+                                            .textFieldStyle(CustomTextFieldStyle())
+                                            .keyboardType(.numberPad)
+                                            .padding(.horizontal)
+                                            .background(Color.customBeige.opacity(0.1))
+                                            .cornerRadius(12)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
+                                            )
+                                            
+                                        Picker("Unit", selection: $selectedUnit) {
+                                            Section(header: Text("Количество").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.pieces, .packs, .kilograms, .liters, .meters], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
+                                                }
+                                            }
+                                            
+                                            Section(header: Text("Деньги").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.euro, .dollar, .ruble, .tenge], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
+                                                }
+                                            }
+                                            
+                                            Section(header: Text("Время").foregroundColor(.gray)) {
+                                                ForEach([GoalUnit.days, .weeks, .months, .hours], id: \.self) { unit in
+                                                    Text(unit.rawValue).tag(unit)
+                                                }
                                             }
                                         }
-                                        
-                                        Section(header: Text("Деньги").foregroundColor(.gray)) {
-                                            ForEach([GoalUnit.euro, .dollar, .ruble, .tenge], id: \.self) { unit in
-                                                Text(unit.rawValue).tag(unit)
-                                            }
-                                        }
-                                        
-                                        Section(header: Text("Время").foregroundColor(.gray)) {
-                                            ForEach([GoalUnit.days, .weeks, .months, .hours], id: \.self) { unit in
-                                                Text(unit.rawValue).tag(unit)
-                                            }
-                                        }
+                                        .pickerStyle(.menu)
+                                        .frame(width: 80)
+                                        .background(Color.customBeige)
+                                        .cornerRadius(12)
                                     }
-                                    .pickerStyle(.menu)
-                                    .frame(width: 80)
-                                    .background(Color.customBeige)
-                                    .cornerRadius(12)
                                 }
+                                .padding(.horizontal)
+                                .transition(.opacity)
                             }
-                            .padding(.horizontal)
-                            .transition(.opacity)
-                        }
-                        
-                        // Пикер целей и кнопки управления
-                        HStack {
-                            // Красный крестик всегда виден
-                            Button(action: {
-                                if selectedGoalIndex >= goals.count { return }
-                                withAnimation {
-                                    goals.remove(at: selectedGoalIndex)
-                                    if selectedGoalIndex >= goals.count {
-                                        selectedGoalIndex = max(goals.count - 1, 0)
+                            
+                            // Пикер целей и кнопки управления
+                            HStack {
+                                // Красный крестик всегда виден
+                                Button(action: {
+                                    if selectedGoalIndex >= goals.count { return }
+                                    withAnimation {
+                                        goals.remove(at: selectedGoalIndex)
+                                        if selectedGoalIndex >= goals.count {
+                                            selectedGoalIndex = max(goals.count - 1, 0)
+                                        }
                                     }
-                                }
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.red)
-                                    .font(.system(size: 20))
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                        .font(.system(size: 20))
                             }
                             
                             Picker("Goals", selection: $selectedGoalIndex) {
                                 ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
-                                    HStack(spacing: 4) {
+                                        HStack(spacing: 4) {
                                         Text("\(goal.text)")
                                             .font(.system(size: 17, weight: .bold))
                                             .foregroundColor(.white)
                                             .strikethrough(goal.isCompleted)
-                                            .lineLimit(1)
-                                        
+                                                .lineLimit(1)
+                                            
                                         Text(goal.progress)
                                             .font(.system(size: 15, weight: .regular))
-                                            .foregroundColor(.customAccent)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .multilineTextAlignment(.center)
-                                    .tag(index)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .overlay(
-                                Button(action: {
-                                    showGoalsList = true
-                                }) {
-                                    Color.clear
-                                        .frame(width: UIScreen.main.bounds.width * 0.5)
-                                }
-                            )
-                            
-                            // Карандаш всегда виден
-                            if let goal = goals[safe: selectedGoalIndex] {
-                                Button(action: {
-                                    startEditing(goal)
-                                }) {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .foregroundColor(.customAccent)
-                                        .font(.system(size: 20))
-                                }
-                            }
-                            
-                            // Зеленая галочка видна только после разделения фото
-                            if let selectedGoal = goals[safe: selectedGoalIndex],
-                               !selectedGoal.isCompleted && showGrid {
-                                Button(action: {
-                                    if let remainingAmount = Int(selectedGoal.remainingNumber) {
-                                        updateGoalProgress(goalId: selectedGoal.id, amount: remainingAmount)
-                                    }
-                                }) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                        .font(.system(size: 20))
-                                }
-                            }
-                        }
-                        .frame(height: UIScreen.main.bounds.height * 0.08)
-                        .background(Color.customNavy)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                        .alert(isPresented: $showAlert) {
-                            Alert(
-                                title: Text("Image Not Divided"),
-                                message: Text("Please divide the image first by clicking 'Divide Image' button."),
-                                dismissButton: .default(Text("OK"))
-                            )
-                        }
-                        
-                        // Поле частичного выполнения
-                        if let selectedGoal = goals[safe: selectedGoalIndex],
-                           !selectedGoal.isCompleted && showGrid {
-                            HStack(spacing: 15) {
-                                TextField("Enter completed amount", text: $partialCompletion)
-                                    .textFieldStyle(CustomTextFieldStyle())
-                                    .keyboardType(.numberPad)
-                                    .padding(.horizontal)
-                                    .frame(width: UIScreen.main.bounds.width * 0.35)
-                                    .background(Color.customBeige.opacity(0.1))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
-                                    )
-                                    .toolbar {
-                                        ToolbarItemGroup(placement: .keyboard) {
-                                            Spacer()
-                                            Button(action: {
-                                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                    to: nil, from: nil, for: nil)
-                                            }) {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundColor(.customAccent)
-                                                    .font(.system(size: 20))
-                                            }
+                                                .foregroundColor(.customAccent)
                                         }
-                                    }
-                                
-                                Button("Complete") {
-                                    if let partialAmount = Int(partialCompletion),
-                                       let selectedGoal = goals[safe: selectedGoalIndex] {
-                                        // Сохраняем текущее состояние перед изменением
-                                        lastCellsState = cells
-                                        lastGoalsState = goals
-                                        
-                                        updateGoalProgress(goalId: selectedGoal.id, amount: partialAmount)
-                                        partialCompletion = ""
+                                        .frame(maxWidth: .infinity)
+                                        .multilineTextAlignment(.center)
+                                        .tag(index)
                                     }
                                 }
-                                .foregroundColor(.customDarkNavy)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 8)
-                                .background(Color.customBeige)
-                                .cornerRadius(12)
-                                
-                                // Добавляем кнопку Undo
-                                if lastCellsState != nil {
+                                .pickerStyle(.wheel)
+                                .overlay(
                                     Button(action: {
-                                        // Восстанавливаем предыдущее состояние
-                                        if let lastCells = lastCellsState,
-                                           let lastGoals = lastGoalsState {
-                                            withAnimation {
-                                                cells = lastCells
-                                                goals = lastGoals
-                                                lastCellsState = nil
-                                                lastGoalsState = nil
-                                            }
+                                        showGoalsList = true
+                                    }) {
+                                        Color.clear
+                                            .frame(width: UIScreen.main.bounds.width * 0.5)
+                                    }
+                                )
+                                
+                                // Карандаш всегда виден
+                                if let goal = goals[safe: selectedGoalIndex] {
+                                    Button(action: {
+                                        startEditing(goal)
+                                    }) {
+                                        Image(systemName: "pencil.circle.fill")
+                                            .foregroundColor(.customAccent)
+                                            .font(.system(size: 20))
+                                    }
+                                }
+                                
+                                // Зеленая галочка видна только после разделения фото
+                                if let selectedGoal = goals[safe: selectedGoalIndex],
+                                   !selectedGoal.isCompleted && showGrid {
+                                    Button(action: {
+                                        if let remainingAmount = Int(selectedGoal.remainingNumber) {
+                                            updateGoalProgress(goalId: selectedGoal.id, amount: remainingAmount)
                                         }
                                     }) {
-                                        Image(systemName: "arrow.uturn.backward.circle.fill")
-                                            .foregroundColor(.customAccent)
-                                            .font(.system(size: 24))
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                            .font(.system(size: 20))
                                     }
                                 }
                             }
+                            .frame(height: UIScreen.main.bounds.height * 0.08)
+                            .background(Color.customNavy)
+                            .cornerRadius(12)
                             .padding(.horizontal)
+                            .alert(isPresented: $showAlert) {
+                                Alert(
+                                    title: Text("Image Not Divided"),
+                                    message: Text("Please divide the image first by clicking 'Divide Image' button."),
+                                    dismissButton: .default(Text("OK"))
+                                )
+                            }
+                            
+                            // Поле частичного выполнения
+                            if let selectedGoal = goals[safe: selectedGoalIndex],
+                               !selectedGoal.isCompleted && showGrid {
+                                HStack(spacing: 15) {
+                                    TextField("Enter completed amount", text: $partialCompletion)
+                                        .textFieldStyle(CustomTextFieldStyle())
+                                        .keyboardType(.numberPad)
+                                        .padding(.horizontal)
+                                        .frame(width: UIScreen.main.bounds.width * 0.35)
+                                        .background(Color.customBeige.opacity(0.1))
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.customBeige.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .toolbar {
+                                            ToolbarItemGroup(placement: .keyboard) {
+                                                Spacer()
+                                                Button(action: {
+                                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                                                }) {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(.customAccent)
+                                                        .font(.system(size: 20))
+                                                }
+                                            }
+                                        }
+                                    
+                                    Button("Complete") {
+                                        if let partialAmount = Int(partialCompletion),
+                                           let selectedGoal = goals[safe: selectedGoalIndex] {
+                                            // Сохраняем текущее состояние перед изменением
+                                            lastCellsState = cells
+                                            lastGoalsState = goals
+                                            
+                                            updateGoalProgress(goalId: selectedGoal.id, amount: partialAmount)
+                                            partialCompletion = ""
+                                        }
+                                    }
+                                    .foregroundColor(.customDarkNavy)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(Color.customBeige)
+                                    .cornerRadius(12)
+                                    
+                                    // Добавляем кнопку Undo
+                                    if lastCellsState != nil {
+                                        Button(action: {
+                                            // Восстанавливаем предыдущее состояние
+                                            if let lastCells = lastCellsState,
+                                               let lastGoals = lastGoalsState {
+                                                withAnimation {
+                                                    cells = lastCells
+                                                    goals = lastGoals
+                                                    lastCellsState = nil
+                                                    lastGoalsState = nil
+                                                }
+                                            }
+                                        }) {
+                                            Image(systemName: "arrow.uturn.backward.circle.fill")
+                                                .foregroundColor(.customAccent)
+                                                .font(.system(size: 24))
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
                         }
                     }
                 }
+                .onChange(of: selectedImage) { _ in
+                    // Принудительно обновляем layout при изменении изображения
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            isLayoutReady = true
+                        }
+                    }
+                }
+                .onAppear {
+                    loadFromStorage()
+                    // Принудительно обновляем layout при появлении экрана
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            isLayoutReady = true
+                        }
+                    }
+                }
+                .id(isLayoutReady) // Принудительно пересоздаем view при изменении isLayoutReady
             }
+            .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(action: {
-                            showingSecondView = true
-                        }) {
-                            Label("My Goals", systemImage: "list.bullet")
-                        }
-                        
-                        Button(action: {
-                            openPrivacyPolicy()
-                        }) {
-                            Label("Privacy Policy", systemImage: "doc.text")
-                        }
-                        
-                        Button(action: {
-                            self.selectedImage = nil
-                            selectedItem = nil
-                            goals.removeAll()
-                            showGrid = false
-                            savedState = nil
-                            cells.removeAll()
-                            coloredCount = 0
-                            clearInputs()
-                        }) {
-                            Label("Main", systemImage: "house")
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title)
-                            .foregroundColor(.white)
-                    }
-                }
-            }
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showingSecondView) {
             SecondView(
                 savedProjects: $savedProjects,
@@ -852,9 +859,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            loadFromStorage()
-        }
     }
     
     private func addGoal() {
@@ -913,11 +917,18 @@ struct ContentView: View {
         if let uiImage = UIImage(data: project.imageData) {
             originalUIImage = uiImage  // Сохраняем оригинальный UIImage
             selectedImage = Image(uiImage: uiImage)
-            goals = project.goals
-            cells = project.cells
-            showGrid = project.showGrid
+        goals = project.goals
+        cells = project.cells
+        showGrid = project.showGrid
             projectName = project.projectName
             currentProjectId = project.id
+            
+            // Принудительно обновляем layout
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation {
+                    isLayoutReady = true
+                }
+            }
         }
     }
     
@@ -986,7 +997,7 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+            ContentView()
             .previewDevice("iPhone 14")  // Указываем конкретное устройство
             .previewDisplayName("iPhone 14")  // Добавляем название в превью
     }
